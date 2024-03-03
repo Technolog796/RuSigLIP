@@ -1,8 +1,7 @@
 from torch import nn
-from encoders.image_encoder import ImageEncoder
-from encoders.text_encoder import TextEncoder
-from encoders.connector import Connector
-from loss import Sig_Loss
+from .encoders import ImageEncoder
+from .encoders import TextEncoder
+from .encoders import Connector
 
 
 class SigLIPModel(nn.Module):
@@ -44,4 +43,4 @@ class SigLIPModel(nn.Module):
             )
         )
 
-        return Sig_Loss(image_embeddings, text_embeddings, t_prime=0.1, b=-10)
+        return image_embeddings, text_embeddings
