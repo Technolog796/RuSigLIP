@@ -2,28 +2,46 @@ from torch import nn
 from encoders.image_encoder import ImageEncoder
 from encoders.text_encoder import TextEncoder
 from encoders.connector import Connector
+from loss import Sig_Loss
 
 
 class SigLIPModel(nn.Module):
-    def __init__(self, image_embedding_size, text_image_embedding_size):
-        super(SigLIPModel, self).__init__()
+    def __init__(
+        self,
+        image_embeddings_dim: int,
+        text_embeddings_dim: int,
+        connector_dim: int,
+        dropout_rate: float,
+    ):
+        super().__init__()
 
-        self.image_encoder = ImageEncoder()
-        self.text_encoder = TextEncoder()  # Тут указать модель конфиге
-
-        self.image_connector = Connector(image_embedding_size, 256)
-
-        self.text_connector = Connector(text_image_embedding_size, 256)
-
-    def forward(self, batch):
-        # Getting Image and Text Features
-        image_features = self.image_encoder(batch["image"])
-        text_features = self.text_encoder(
-            input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
+        self.image_encoder = ImageEncoder(
+            model_name="resnet50", pretrained=True, freeze=True
         )
-        # Getting Image and Text Embeddings (with same dimension)
-        image_embeddings = self.image_projection(image_features)
-        text_embeddings = self.text_projection(text_features)
+        self.text_encoder = TextEncoder(
+            model_name="google-bert/bert-base-multilingual-cased",
+            pretrained=True,
+            freeze=True,
+        )
 
-        # Calculating the Loss
-        # Los implementation here
+        self.image_connector = Connector(
+            embedding_dim=image_embeddings_dim,
+            projection_dim=connector_dim,
+            dropout_rate=dropout_rate,
+        )
+
+        self.text_connector = Connector(
+            embedding_dim=text_embeddings_dim,
+            projection_dim=connector_dim,
+            dropout_rate=dropout_rate,
+        )
+
+    def forward(self, sample):
+        image_embeddings = self.image_connector(self.image_encoder(sample["image"]))
+        text_embeddings = self.text_connector(
+            self.text_encoder(
+                input_ids=sample["input_ids"], attention_mask=sample["attention_mask"]
+            )
+        )
+
+        return Sig_Loss(image_embeddings, text_embeddings, t_prime=0.1, b=-10)

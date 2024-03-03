@@ -33,7 +33,10 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
                 dist.send(txt_emb, next_rank)
                 dist.barrier()
                 dist.recv(txt_emb, prev_rank)
-                loss += sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"]) / args["train_batch_size"]
+                loss += (
+                    sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"])
+                    / args["train_batch_size"]
+                )
 
             dist.barrier()
             dist.all_reduce(loss, op=dist.ReduceOp.SUM)
@@ -46,7 +49,7 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
     ddp_loss /= len(train_loader)
     dist.all_reduce(ddp_loss, op=dist.ReduceOp.SUM)
     if rank == 0:
-        print('Epoch: {} \t Train Loss: {:.6f}'.format(epoch, ddp_loss.item()))
+        print("Epoch: {} \t Train Loss: {:.6f}".format(epoch, ddp_loss.item()))
 
 
 def test(model, rank, world_size, test_loader):
@@ -56,7 +59,9 @@ def test(model, rank, world_size, test_loader):
         for images, texts in test_loader:
             images, texts = images.to(rank), texts.to(rank)
             img_emb, txt_emb = model(images, texts)
-            loss = sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"]) / len(img_emb)
+            loss = sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"]) / len(
+                img_emb
+            )
 
             if world_size > 1:
                 # TODO: experimental feature
@@ -69,7 +74,10 @@ def test(model, rank, world_size, test_loader):
                     dist.send(txt_emb, next_rank)
                     dist.barrier()
                     dist.recv(txt_emb, prev_rank)
-                    loss += sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"]) / args["train_batch_size"]
+                    loss += (
+                        sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"])
+                        / args["train_batch_size"]
+                    )
 
                 dist.barrier()
                 dist.all_reduce(loss, op=dist.ReduceOp.SUM)
@@ -81,7 +89,7 @@ def test(model, rank, world_size, test_loader):
     dist.all_reduce(ddp_loss, op=dist.ReduceOp.SUM)
 
     if rank == 0:
-        print('Test Loss: {:.6f}'.format(ddp_loss.item()))
+        print("Test Loss: {:.6f}".format(ddp_loss.item()))
 
 
 def fsdp_main(rank, world_size, args):
@@ -91,12 +99,18 @@ def fsdp_main(rank, world_size, args):
     train_dataset = ...
     test_dataset = ...
 
-    train_sampler = DistributedSampler(train_dataset, rank=rank, num_replicas=world_size, shuffle=True)
+    train_sampler = DistributedSampler(
+        train_dataset, rank=rank, num_replicas=world_size, shuffle=True
+    )
     test_sampler = DistributedSampler(test_dataset, rank=rank, num_replicas=world_size)
 
-    train_kwargs = {'batch_size': args["train_batch_size"], 'sampler': train_sampler}
-    test_kwargs = {'batch_size': args["test_batch_size"], 'sampler': test_sampler}
-    cuda_kwargs = {'num_workers': args["num_workers"], 'pin_memory': True, 'shuffle': False}
+    train_kwargs = {"batch_size": args["train_batch_size"], "sampler": train_sampler}
+    test_kwargs = {"batch_size": args["test_batch_size"], "sampler": test_sampler}
+    cuda_kwargs = {
+        "num_workers": args["num_workers"],
+        "pin_memory": True,
+        "shuffle": False,
+    }
     train_kwargs.update(cuda_kwargs)
     test_kwargs.update(cuda_kwargs)
 
@@ -111,7 +125,16 @@ def fsdp_main(rank, world_size, args):
     scheduler = StepLR(optimizer, step_size=1, gamma=args["gamma"])
 
     for epoch in range(1, args["epochs"] + 1):
-        train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler=train_sampler)
+        train(
+            args,
+            model,
+            rank,
+            world_size,
+            train_loader,
+            optimizer,
+            epoch,
+            sampler=train_sampler,
+        )
         test(model, rank, world_size, test_loader)
         scheduler.step()
 
@@ -125,17 +148,18 @@ def fsdp_main(rank, world_size, args):
 
 
 if __name__ == "__main__":
-
-    args = {"train_batch_size": 1000,
-            "test_batch_size": 1000,
-            "epochs": 1,
-            "lr": 0.1,
-            "gamma": 0.5,
-            "seed": 42,
-            "num_workers": 0,
-            "t_prime": torch.log(torch.tensor(10.)),
-            "bias": torch.tensor(-10),
-            "save_model": False}
+    args = {
+        "train_batch_size": 1000,
+        "test_batch_size": 1000,
+        "epochs": 1,
+        "lr": 0.1,
+        "gamma": 0.5,
+        "seed": 42,
+        "num_workers": 0,
+        "t_prime": torch.log(torch.tensor(10.0)),
+        "bias": torch.tensor(-10),
+        "save_model": False,
+    }
 
     torch.manual_seed(args["seed"])
 

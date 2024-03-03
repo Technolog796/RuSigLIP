@@ -1,0 +1,28 @@
+Dataset:
+# Dasaset parameters, discuss it with Dasha
+
+
+Image Encoder:
+  model: "resnet50"
+  embedding_size: 2048
+  pretrained: True
+  trainable: False
+
+Text Encoder:
+  model: "ai-forever/sbert_large_nlu_ru"
+  embedding_size: 1024
+  max_length: 512
+  pretrained: True
+  trainable: False
+
+Connector:
+  connectors: 1
+  connector_size: 256
+  dropout: 0.1
+
+Loss parameters:
+  t_prime: 0.1
+  b: -10
+
+
+
