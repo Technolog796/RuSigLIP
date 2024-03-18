@@ -21,12 +21,12 @@ Connector:
   dropout: 0.1
 
 Train parameters:
-  batch_size: 10
-  epochs: 10
-  learning_rate: 0.1
-  gamma: 0.5
+  batch_size: 5
+  epochs: 100
+  learning_rate: 0.001
+  gamma: 0.8
   num_workers: 0
   t_prime: 10.0
   bias: -10.0
   seed: 42
-  save_model: False
+  save_model: True

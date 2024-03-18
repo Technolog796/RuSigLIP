@@ -4,7 +4,6 @@ import json
 import albumentations as A
 import cv2
 import torch
-import numpy as np
 from PIL import Image
 
 
@@ -14,8 +13,8 @@ def get_images_and_labels(data_file):
     with open(data_file, "r") as f:
         data = json.load(f)
     for i in data:
-        images_path.append(i["image_url"])
-        labels.append(i["caption_description"])
+        images_path.append(i["image"])
+        labels.append(i["label"])
     return images_path, labels
 
 
@@ -60,9 +59,7 @@ class RuSigLIPDataset(Dataset):
             for key, values in self.tokenized_labels.items()
         }
 
-        # image = cv2.imread(self.images_path[idx])
-        # TODO
-        image = np.random.randint(low=0, high=255, size=(256, 256, 3)).astype(np.uint8)
+        image = cv2.imread(self.images_path[idx])
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = self.transforms(image=image)["image"]
 

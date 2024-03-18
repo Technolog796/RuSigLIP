@@ -1,6 +1,8 @@
 import os
 import yaml
 
+from tqdm import tqdm
+
 import torch
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
@@ -12,7 +14,7 @@ from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 from models.loss import sig_loss
 from models.main_model import SigLIPModel
-from dataloader.Coco_dataset import RuSigLIPDataset
+from dataloader.wiki_dataset import RuSigLIPDataset
 
 from transformers import AutoTokenizer
 
@@ -22,33 +24,17 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
     ddp_loss = torch.tensor(0.0).to(rank)
     if sampler:
         sampler.set_epoch(epoch)
-    for batch_idx, batch in enumerate(train_loader):
+    for batch_idx, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
         batch = {key: value.to(rank) for key, value in batch.items()
                  if key in ["image", "input_ids", "attention_mask"]}
         optimizer.zero_grad()
         img_emb, txt_emb = model(batch)
         loss = sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"]) / len(img_emb)
 
-        if world_size > 2:
-            # TODO: experimental feature
-
-            next_rank = (rank + 1) % world_size
-            prev_rank = (rank - 1) % world_size
-
-            for shift in range(world_size - 1):
-                dist.barrier()
-                dist.send(txt_emb, next_rank)
-                dist.barrier()
-                dist.recv(txt_emb, prev_rank)
-                loss += sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"]) / args["train_batch_size"]
-
-            dist.barrier()
-            dist.all_reduce(loss, op=dist.ReduceOp.SUM)
-
         loss.backward()
         optimizer.step()
-        if rank == 0:
-            ddp_loss += loss.item()
+
+        ddp_loss += loss.item()
 
     ddp_loss /= len(train_loader)
     dist.all_reduce(ddp_loss, op=dist.ReduceOp.SUM)
@@ -56,34 +42,17 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
         print('Epoch: {} \t Train Loss: {:.6f}'.format(epoch, ddp_loss.item()))
 
 
-def test(model, rank, world_size, test_loader):
+def test(args, model, rank, world_size, test_loader):
     model.eval()
     ddp_loss = torch.tensor(0.0).to(rank)
     with torch.no_grad():
-        for batch in test_loader:
+        for batch in tqdm(test_loader):
             batch = {key: value.to(rank) for key, value in batch.items()
                      if key in ["image", "input_ids", "attention_mask"]}
             img_emb, txt_emb = model(batch)
             loss = sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"]) / len(img_emb)
 
-            if world_size > 2:
-                # TODO: experimental feature
-
-                next_rank = (rank + 1) % world_size
-                prev_rank = (rank - 1) % world_size
-
-                for shift in range(world_size - 1):
-                    dist.barrier()
-                    dist.send(txt_emb, next_rank)
-                    dist.barrier()
-                    dist.recv(txt_emb, prev_rank)
-                    loss += sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"]) / args["train_batch_size"]
-
-                dist.barrier()
-                dist.all_reduce(loss, op=dist.ReduceOp.SUM)
-
-            if rank == 0:
-                ddp_loss += loss.item()
+            ddp_loss += loss.item()
 
     ddp_loss /= len(test_loader)
     dist.all_reduce(ddp_loss, op=dist.ReduceOp.SUM)
@@ -94,11 +63,11 @@ def test(model, rank, world_size, test_loader):
 
 def fsdp_main(rank, world_size, args):
     os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
+    os.environ['MASTER_PORT'] = '0'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
     # TODO
-    train_dataset = RuSigLIPDataset(data_file="datasets/wiki_ru.json",
+    train_dataset = RuSigLIPDataset(data_file="datasets/wiki_all_en_ru.json",
                                     tokenizer=AutoTokenizer.from_pretrained("google-bert/bert-base-multilingual-cased"))
     test_dataset = train_dataset
 
@@ -119,11 +88,11 @@ def fsdp_main(rank, world_size, args):
     model = FSDP(model, use_orig_params=True)
 
     optimizer = optim.Adam(model.parameters(), lr=args["learning_rate"])
-    scheduler = StepLR(optimizer, step_size=1, gamma=args["gamma"])
+    scheduler = StepLR(optimizer, step_size=5, gamma=args["gamma"])
 
     for epoch in range(1, args["epochs"] + 1):
         train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler=train_sampler)
-        test(model, rank, world_size, test_loader)
+        # test(args, model, rank, world_size, test_loader)
         scheduler.step()
 
     if args["save_model"]:
