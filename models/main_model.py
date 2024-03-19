@@ -35,12 +35,9 @@ class SigLIPModel(nn.Module):
             dropout_rate=dropout_rate,
         )
 
-    def forward(self, sample):
-        image_embeddings = self.image_connector(self.image_encoder(sample["image"]))
+    def forward(self, images, input_ids, attention_mask):
+        image_embeddings = self.image_connector(self.image_encoder(images))
         text_embeddings = self.text_connector(
-            self.text_encoder(
-                input_ids=sample["input_ids"], attention_mask=sample["attention_mask"]
-            )
+            self.text_encoder(input_ids=input_ids, attention_mask=attention_mask)
         )
-
         return image_embeddings, text_embeddings

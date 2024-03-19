@@ -1,3 +1,5 @@
+import random
+
 from torch.utils.data import Dataset
 
 import json
@@ -7,6 +9,7 @@ import torch
 from PIL import Image
 from skimage import io
 import numpy as np
+
 
 def load_img_from_url(image_url):
     array = io.imread(image_url).astype(np.uint8)
@@ -20,12 +23,12 @@ def get_images_and_labels(data_file):
     with open(data_file, "r") as f:
         data = json.load(f)
     for i in data:
-        if i["image_url"][-3:] != "png":
+        if i["image_url"][-3:] == "svg":
             continue
         images_path.append(i["image_url"])
         labels_en.append(i["caption_description_en"])
         labels_ru.append(i["caption_description_ru"])
-    return images_path[:50], labels_en[:50], labels_ru[:50]
+    return images_path[:30], labels_en[:30], labels_ru[:30]
 
 
 class RuSigLIPDataset(Dataset):
@@ -89,3 +92,27 @@ class RuSigLIPDataset(Dataset):
         item["label"] = self.labels_en[idx]
 
         return item
+
+    def get_image(self, idx):
+        image = load_img_from_url(self.images_path[idx])
+
+        if len(image.shape) == 2:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif image.shape[2] == 2:
+            image = cv2.cvtColor(image[:, :, 0], cv2.COLOR_GRAY2RGB)
+        elif image.shape[2] == 3:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        elif image.shape[2] == 4:
+            image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
+
+        image = self.transforms(image=image)["image"]
+
+        return torch.tensor(image).permute(2, 0, 1).float()
+
+    def get_input_ids(self, idx):
+        return torch.tensor(self.tokenized_labels_en["input_ids"][idx]), \
+               torch.tensor(self.tokenized_labels_ru["input_ids"][idx])
+
+    def get_attention_mask(self, idx):
+        return torch.tensor(self.tokenized_labels_en["attention_mask"][idx]), \
+               torch.tensor(self.tokenized_labels_ru["attention_mask"][idx])

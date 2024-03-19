@@ -22,11 +22,11 @@ Connector:
 
 Train parameters:
   batch_size: 5
-  epochs: 100
+  epochs: 5
   learning_rate: 0.001
   gamma: 0.8
   num_workers: 0
   t_prime: 10.0
   bias: -10.0
   seed: 42
-  save_model: True
+  save_model: False
