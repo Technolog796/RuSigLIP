@@ -10,7 +10,7 @@ Image Encoder:
 
 Text Encoder:
   model: "ai-forever/sbert_large_nlu_ru"
-  embedding_size: 1024
+  embedding_size: 768
   max_length: 512
   pretrained: True
   trainable: False
@@ -20,9 +20,13 @@ Connector:
   connector_size: 256
   dropout: 0.1
 
-Loss parameters:
-  t_prime: 0.1
-  b: -10
-
-
-
+Train parameters:
+  batch_size: 5
+  epochs: 5
+  learning_rate: 0.001
+  gamma: 0.8
+  num_workers: 0
+  t_prime: 10.0
+  bias: -10.0
+  seed: 42
+  save_model: False

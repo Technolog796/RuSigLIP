@@ -1,8 +1,7 @@
 from torch import nn
-from encoders.image_encoder import ImageEncoder
-from encoders.text_encoder import TextEncoder
-from encoders.connector import Connector
-from loss import Sig_Loss
+from .encoders import ImageEncoder
+from .encoders import TextEncoder
+from .encoders import Connector
 
 
 class SigLIPModel(nn.Module):
@@ -36,12 +35,9 @@ class SigLIPModel(nn.Module):
             dropout_rate=dropout_rate,
         )
 
-    def forward(self, sample):
-        image_embeddings = self.image_connector(self.image_encoder(sample["image"]))
+    def forward(self, images, input_ids, attention_mask):
+        image_embeddings = self.image_connector(self.image_encoder(images))
         text_embeddings = self.text_connector(
-            self.text_encoder(
-                input_ids=sample["input_ids"], attention_mask=sample["attention_mask"]
-            )
+            self.text_encoder(input_ids=input_ids, attention_mask=attention_mask)
         )
-
-        return Sig_Loss(image_embeddings, text_embeddings, t_prime=0.1, b=-10)
+        return image_embeddings, text_embeddings

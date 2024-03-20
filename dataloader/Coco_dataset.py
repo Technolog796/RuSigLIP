@@ -65,3 +65,5 @@ class RuSigLIPDataset(Dataset):
 
         item["image"] = torch.tensor(image).permute(2, 0, 1).float()
         item["label"] = self.labels[idx]
+
+        return item
