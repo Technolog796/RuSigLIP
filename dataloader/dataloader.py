@@ -4,7 +4,7 @@ from typing import Iterator
 import torch
 from torch import Tensor
 
-from .wiki_dataset import RuSigLIPDataset
+from .dataset import RuSigLIPDataset
 
 
 class SigLIPDataLoader:

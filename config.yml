@@ -1,32 +1,51 @@
-Dataset:
-# Dasaset parameters, discuss it with Dasha
+Model parameters:
+  image_encoder_params:
+    model_name: "resnet50"
+    pretrained: True
+    freeze: True
+  text_encoder_params:
+    model_name: "google-bert/bert-base-multilingual-cased"
+    pretrained: True
+    freeze: True
+  connector_params:
+    connectors: 1
+    connector_size: 256
+    dropout: 0.1
+  image_embedding_size: 2048
+  text_embedding_size: 768
 
+Train dataset name: "WikiDataset"
+Train dataset parameters:
+  dataset_directory: "datasets/wiki_dataset/"
+  tokenizer_name: "google-bert/bert-base-multilingual-cased"
+  load_tokenized_files: False
+  save_tokenized_files: True
+  max_sequence_length: 64
 
-Image Encoder:
-  model: "resnet50"
-  embedding_size: 2048
-  pretrained: True
-  trainable: False
+Test dataset name: "LaionCocoDataset"
+Test dataset parameters:
+  dataset_directory: "datasets/laion_coco_dataset/"
+  tokenizer_name: "google-bert/bert-base-multilingual-cased"
+  load_tokenized_files: False
+  save_tokenized_files: True
+  max_sequence_length: 64
 
-Text Encoder:
-  model: "google-bert/bert-base-multilingual-cased"
-  embedding_size: 768
-  max_length: 64
-  pretrained: True
-  trainable: False
+Dataloader parameters:
+  batch_size: 250
+  seed: 42
 
-Connector:
-  connectors: 1
-  connector_size: 256
-  dropout: 0.1
-
-Train parameters:
-  batch_size: 50
-  epochs: 100
-  learning_rate: 0.001
-  gamma: 0.9
-  num_workers: 0
+Loss parameters:
   temperature: 10.0
   bias: -10.0
-  seed: 42
+
+Optimizer parameters:
+  lr: 0.001
+
+Scheduler parameters:
+  step_size: 10
+  gamma: 0.9
+
+Train parameters:
+  epochs: 100
   save_model: False
+  save_directory: "trained_models/model01.pt"
