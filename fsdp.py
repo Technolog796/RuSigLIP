@@ -1,6 +1,5 @@
 import os
 import yaml
-import random
 
 from tqdm import tqdm
 
@@ -10,91 +9,32 @@ from torch.optim.lr_scheduler import StepLR
 
 import torch.distributed as dist
 import torch.multiprocessing as mp
-from torch.utils.data import DataLoader
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
-from models.loss import positive_sig_loss, negative_sig_loss
+from models.loss import SigmoidLoss
 from models.main_model import SigLIPModel
-from dataloader.wiki_dataset import RuSigLIPDataset
+from dataloader.dataloader import SigLIPDataLoader
+from dataloader.dataset import RuSigLIPDataset
 
 from transformers import AutoTokenizer
 
 
-class SigLIPSampler:
-    def __init__(self, dataset, batch_size, seed=42):
-        self.dataset = dataset
-        self.batch_number = len(dataset) // batch_size
-        self.seed = seed
-        self.epoch = 0
-
-    def get_indices(self):
-        g = torch.Generator()
-        g.manual_seed(self.seed + self.epoch)
-        indices = torch.randperm(len(self.dataset), generator=g).tolist()
-        return indices
-
-    def get_langs(self):
-        random.seed(self.seed + self.epoch)
-        langs = [random.choice([0, 1]) for _ in range(self.batch_number)]
-        return langs
-
-    def set_epoch(self, epoch):
-        self.epoch = epoch
-
-
-class SigLIPDataLoader(DataLoader):
-    def __init__(self, dataset, batch_size, sampler, rank, world_size):
-        super().__init__(dataset, batch_size, sampler=sampler)
-        self.rank = rank
-        self.world_size = world_size
-        self.chunk_size = batch_size // world_size
-        self.size = len(self.dataset) // self.batch_size
-
-    def __len__(self):
-        return self.size
-
-    def __iter__(self):
-        indices = self.sampler.get_indices()
-        langs = self.sampler.get_langs()
-        for i in range(self.size):
-            start = i * self.batch_size
-            end = start + self.batch_size
-            batch_indices = indices[start:end]
-            batch_lang = langs[i]
-            batch_indices = batch_indices[self.rank:] + batch_indices[:self.rank]
-
-            images = torch.stack([self.dataset.get_image(idx) for idx in batch_indices[:self.chunk_size]])
-            input_ids = []
-            attention_mask = []
-            for i in range(self.world_size):
-                input_ids.append(
-                    torch.stack([self.dataset.get_input_ids(idx)[batch_lang] for idx in batch_indices[self.chunk_size * i:self.chunk_size * (i + 1)]]))
-                attention_mask.append(
-                    torch.stack([self.dataset.get_attention_mask(idx)[batch_lang] for idx in batch_indices[self.chunk_size * i:self.chunk_size * (i + 1)]]))
-
-            batch = (images, input_ids, attention_mask)
-            yield batch
-
-
-def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler=None):
+def train(args, model, criterion, rank, world_size, train_loader, optimizer, epoch, sampler=None):
     model.train()
     ddp_loss = torch.tensor(0.0).to(rank)
     if sampler:
-        sampler.set_epoch(epoch)
-    for batch_idx, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
-        images, all_input_ids, all_attention_mask = batch
-        images = images.to(rank)
-
+        train_loader.set_epoch(epoch)
+    for images, texts in tqdm(train_loader, total=len(train_loader)):
         optimizer.zero_grad()
 
-        img_emb, txt_emb = model(images, all_input_ids[0], all_attention_mask[0])
-        loss = positive_sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"])
+        img_emb, txt_emb = model(images, texts[0])
+        loss = criterion(img_emb, txt_emb, positive=True)
         
         for i in range(1, world_size):
-            img_emb, txt_emb = model(images, all_input_ids[i], all_attention_mask[i])
-            loss += negative_sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"])
+            img_emb, txt_emb = model(images, texts[i])
+            loss += criterion(img_emb, txt_emb, positive=False)
 
-        loss /= args["batch_size"]
+        loss /= args["Train parameters"]["batch_size"]
 
         loss.backward()
         optimizer.step()
@@ -107,7 +47,7 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
         print("Epoch: {} \t Train Loss: {:.6f}".format(epoch, ddp_loss.item()))
 
 
-def test(args, model, rank, world_size, test_loader):
+def test(args, model, criterion, rank, world_size, test_loader):
     model.eval()
     ddp_loss = torch.tensor(0.0).to(rank)
     with torch.no_grad():
@@ -115,7 +55,7 @@ def test(args, model, rank, world_size, test_loader):
             batch = {key: value.to(rank) for key, value in batch.items()
                      if key in ["image", "input_ids", "attention_mask"]}
             img_emb, txt_emb = model(batch)
-            loss = positive_sig_loss(img_emb, txt_emb, args["t_prime"], args["bias"]) / len(img_emb)
+            loss = criterion(img_emb, txt_emb, positive=True)
 
             ddp_loss += loss.item()
 
@@ -126,40 +66,38 @@ def test(args, model, rank, world_size, test_loader):
         print("Test Loss: {:.6f}".format(ddp_loss.item()))
 
 
-def fsdp_main(rank, world_size, args):
+def fsdp_main(rank, world_size, train_dataset, args):
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "0"
+    os.environ["MASTER_PORT"] = "12345"
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
     # TODO
-    train_dataset = RuSigLIPDataset(data_file="datasets/wiki_all_en_ru.json",
-                                    tokenizer=AutoTokenizer.from_pretrained("google-bert/bert-base-multilingual-cased"))
     #test_dataset = train_dataset
-
-    train_sampler = SigLIPSampler(dataset=train_dataset, batch_size=args["batch_size"], seed=args["seed"])
-    #test_sampler = DistributedSampler(test_dataset, rank=rank, num_replicas=world_size)
-
     train_loader = SigLIPDataLoader(dataset=train_dataset,
-                                    batch_size=args["batch_size"],
-                                    sampler=train_sampler,
+                                    batch_size=args["Train parameters"]["batch_size"],
                                     rank=rank,
-                                    world_size=world_size)
+                                    world_size=world_size,
+                                    seed=args["Train parameters"]["seed"])
     #test_loader = DataLoader(test_dataset)
 
     torch.cuda.set_device(rank)
 
-    model = SigLIPModel(2048, 768, 256, 0.1).to(rank)
+    model = SigLIPModel(args["Image Encoder"]["embedding_size"], args["Text Encoder"]["embedding_size"],
+                        args["Connector"]["connector_size"], args["Connector"]["dropout"]).to(rank)
     model = FSDP(model, use_orig_params=True)
 
-    optimizer = optim.Adam(model.parameters(), lr=args["learning_rate"])
-    scheduler = StepLR(optimizer, step_size=5, gamma=args["gamma"])
+    criterion = SigmoidLoss(temperature=args["Train parameters"]["temperature"],
+                            bias=args["Train parameters"]["bias"])
 
-    for epoch in range(1, args["epochs"] + 1):
-        train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler=train_sampler)
-        # test(args, model, rank, world_size, test_loader)
+    optimizer = optim.Adam(model.parameters(), lr=args["Train parameters"]["learning_rate"])
+    scheduler = StepLR(optimizer, step_size=10, gamma=args["Train parameters"]["gamma"])
+
+    for epoch in range(1, args["Train parameters"]["epochs"] + 1):
+        train(args, model, criterion, rank, world_size, train_loader, optimizer, epoch)
+        # test(args, model, criterion, rank, world_size, test_loader)
         scheduler.step()
 
-    if args["save_model"]:
+    if args["Train parameters"]["save_model"]:
         dist.barrier()
         states = model.state_dict()
         if rank == 0:
@@ -171,10 +109,14 @@ def fsdp_main(rank, world_size, args):
 if __name__ == "__main__":
     WORLD_SIZE = torch.cuda.device_count()
 
-    with open("config.yaml") as file:
-        args = yaml.load(file, yaml.Loader)["Train parameters"]
-        assert args["batch_size"] % WORLD_SIZE == 0
+    with open("config.yml") as file:
+        args = yaml.load(file, yaml.Loader)
+        assert args["Train parameters"]["batch_size"] % WORLD_SIZE == 0
 
-    torch.manual_seed(args["seed"])
+    torch.manual_seed(args["Train parameters"]["seed"])
 
-    mp.spawn(fsdp_main, args=(WORLD_SIZE, args), nprocs=WORLD_SIZE, join=True)
+    train_dataset = RuSigLIPDataset(data_file="datasets/laion_coco.json",
+                                    tokenizer=AutoTokenizer.from_pretrained("google-bert/bert-base-multilingual-cased"),
+                                    max_len=args["Text Encoder"]["max_length"])
+
+    mp.spawn(fsdp_main, args=(WORLD_SIZE, train_dataset, args), nprocs=WORLD_SIZE, join=True)

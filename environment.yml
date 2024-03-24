@@ -1,0 +1,12 @@
+name: rusiglip
+channels:
+  - defaults
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.11.8
+  - pytorch=2.2.1
+  - pytorch-cuda=12.1
+  - timm
+  - albumentations
+  - transformers

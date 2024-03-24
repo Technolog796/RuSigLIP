@@ -3,7 +3,7 @@ import albumentations as A
 from .dataset import RuSigLIPDataset
 
 
-class WikiDataset(RuSigLIPDataset):
+class LaionCocoDataset(RuSigLIPDataset):
     def __init__(self, data_file, tokenizer, target_size=256, max_len=64) -> None:
         super().__init__(data_file, tokenizer, target_size, max_len)
 
