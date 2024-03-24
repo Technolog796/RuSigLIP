@@ -3,13 +3,7 @@ from torch import nn
 
 
 class TextEncoder(nn.Module):
-    def __init__(
-        self,
-        model_name: str,
-        pretrained=False,
-        freeze: bool = False,
-        target_token_idx: int = 0,
-    ):
+    def __init__(self, model_name: str, pretrained: bool = False, trainable: bool = True, target_token_idx: int = 0):
         super().__init__()
 
         self.target_token_idx = target_token_idx
@@ -20,7 +14,7 @@ class TextEncoder(nn.Module):
             self.model = AutoModel.from_config(model_name)
 
         for name, param in self.model.named_parameters():
-            param.requires_grad = not freeze
+            param.requires_grad = trainable
 
     def forward(self, input_ids, attention_mask):
         outputs = self.model(input_ids, attention_mask)

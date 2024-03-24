@@ -1,36 +1,27 @@
 import torch
-import torch.nn.functional as F
 from torch import Tensor
+from torch.nn.functional import normalize, logsigmoid
 
 
-def positive_sig_loss(img_emb: Tensor, txt_emb: Tensor, temperature: float, bias: float) -> Tensor:
-    if img_emb.shape != txt_emb.shape:
-        raise TypeError("Input image and text embeddings must be the same size.")
+class SigmoidLoss:
+    def __init__(self, temperature: float = 10, bias: float = -10):
+        self.temperature = temperature
+        self.bias = bias
 
-    n = len(img_emb)
+    def __call__(self, img_emb: Tensor, txt_emb: Tensor, positive: bool = True) -> Tensor:
+        if img_emb.shape != txt_emb.shape:
+            raise TypeError("Input image and text embeddings must be the same size.")
 
-    zimg = img_emb / img_emb.norm()
-    ztxt = txt_emb / txt_emb.norm()
+        n = len(img_emb)
+        device = torch.get_device(img_emb)
 
-    logits = zimg @ ztxt.T * temperature + bias
-    device = torch.get_device(logits)
-    labels = 2 * torch.eye(n, device=device) - torch.ones(n, device=device)
+        z_img = normalize(img_emb)
+        z_txt = normalize(txt_emb)
 
-    return -F.logsigmoid(labels * logits).sum()
+        logits = z_img @ z_txt.T * self.temperature + self.bias
 
-def negative_sig_loss(img_emb: Tensor, txt_emb: Tensor, temperature: float, bias: float) -> Tensor:
-    if img_emb.shape != txt_emb.shape:
-        raise TypeError("Input image and text embeddings must be the same size.")
+        labels = -torch.ones((n, n), device=device)
+        if positive:
+            labels += 2 * torch.eye(n, device=device)
 
-    n = len(img_emb)
-
-    zimg = img_emb / img_emb.norm()
-    ztxt = txt_emb / txt_emb.norm()
-
-    logits = zimg @ ztxt.T * temperature + bias
-    device = torch.get_device(logits)
-    labels = -torch.ones(n, device=device)
-
-    return -F.logsigmoid(labels * logits).sum()
-
-
+        return -logsigmoid(labels * logits).sum()
