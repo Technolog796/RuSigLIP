@@ -2,14 +2,35 @@ from datasets import load_dataset
 from tqdm.contrib import tzip
 import json
 import requests
+import pandas as pd
 import os
+from pandarallel import pandarallel
+pandarallel.initialize(progress_bar=True)
 
-train_dataset = load_dataset("visheratin/laion-coco-nllb", split="train")
-val_dataset = load_dataset("visheratin/laion-coco-nllb", split="test")
+
+raw_train_dataset = pd.DataFrame(load_dataset("visheratin/laion-coco-nllb", split="train"))
+raw_train_dataset.drop(columns=['url', 'score'], inplace=True)
+raw_train_dataset["rus_captions"] = raw_train_dataset["captions"].parallel_apply(lambda x: [x[i][1] for i in range(len(x)) if x[i][0] == 'rus_Cyrl'])
+train_dataset = raw_train_dataset[raw_train_dataset["rus_captions"].parallel_apply(lambda x: len(x) != 0)].copy()
+del raw_train_dataset
+train_dataset.loc[:, "rus_captions"] = train_dataset.rus_captions.parallel_apply(lambda x : x[0])
+train_dataset.drop(columns=["captions"], inplace=True)
+
+
+
+raw_val_dataset = pd.DataFrame(load_dataset("visheratin/laion-coco-nllb", split="test"))
+raw_val_dataset.drop(columns=['url', 'score'], inplace=True)
+raw_val_dataset["rus_captions"] = raw_val_dataset["captions"].parallel_apply(lambda x: [x[i][1] for i in range(len(x)) if x[i][0] == 'rus_Cyrl'])
+val_dataset = raw_val_dataset[raw_val_dataset["rus_captions"].parallel_apply(lambda x: len(x) != 0)].copy()
+del raw_val_dataset
+val_dataset.loc[:, "rus_captions"] = val_dataset.rus_captions.parallel_apply(lambda x : x[0])
+val_dataset.drop(columns=["captions"], inplace=True)
+
 
 
 def format_link(id: str) -> str:
     return f"https://nllb-data.com/{id}.jpg"
+
 
 
 def main():
@@ -27,15 +48,15 @@ def main():
 
     for id, en_cap, rus_cap in tzip(
         train_dataset["id"],
-        train_dataset["caption_en"],
-        train_dataset["captions"]["rus_Cyrl"],
+        train_dataset["eng_caption"],
+        train_dataset["rus_captions"],
     ):
         try:
             img = requests.get(format_link(id)).content
             with open(f"laion-coco-nllb/train_images/{id}.jpg", "wb") as f:
                 f.write(img)
             valid_json_train.append(
-                {"image_id": id, "caption": en_cap, "caption_rus": rus_cap}
+                {"image_id": id, "caption_eng": en_cap, "caption_rus": rus_cap}
             )
 
         except Exception as e:
@@ -46,15 +67,15 @@ def main():
 
     for id, en_cap, rus_cap in tzip(
         val_dataset["id"],
-        val_dataset["caption_en"],
-        val_dataset["captions"]["rus_Cyrl"],
+        val_dataset["eng_caption"],
+        val_dataset["rus_captions"],
     ):
         try:
             img = requests.get(format_link(id)).content
             with open(f"laion-coco-nllb/test_images/{id}.jpg", "wb") as f:
                 f.write(img)
             valid_json_val.append(
-                {"image_id": id, "caption": en_cap, "caption_rus": rus_cap}
+                {"image_id": id, "caption_eng": en_cap, "caption_rus": rus_cap}
             )
 
         except Exception as e:
