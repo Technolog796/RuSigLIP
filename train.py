@@ -2,6 +2,7 @@ import os
 import yaml
 
 from tqdm import tqdm
+import wandb
 
 import torch
 from torch.optim import Adam
@@ -50,6 +51,7 @@ def run_epoch(
     dist.all_reduce(ddp_loss, op=dist.ReduceOp.SUM)
     if rank == 0:
         mode = "Train" if train_mode else "Test"
+        wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
         print(f"Epoch {epoch}\t{mode} loss: {ddp_loss.item():.6f}")
 
 
@@ -72,6 +74,8 @@ def fsdp_main(rank, world_size, args):
 
     model = SigLIPModel(**args["Model parameters"]).to(rank)
     model = FSDP(model, use_orig_params=True)
+
+    wandb.watch(model, log="all", log_freq=10)
 
     criterion = SigmoidLoss(**args["Loss parameters"])
     optimizer = Adam(model.parameters(), **args["Optimizer parameters"])
@@ -104,10 +108,14 @@ def fsdp_main(rank, world_size, args):
 
 if __name__ == "__main__":
     torch.manual_seed(42)
+
     WORLD_SIZE = torch.cuda.device_count()
 
     with open("config.yml") as file:
         args = yaml.load(file, yaml.Loader)
+
+    wandb.login()
+    wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
 
     torch.multiprocessing.spawn(
         fsdp_main, args=(WORLD_SIZE, args), nprocs=WORLD_SIZE, join=True
