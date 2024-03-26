@@ -2,7 +2,9 @@ import torch.nn as nn
 
 
 class Connector(nn.Module):
-    def __init__(self, embedding_dim: int, projection_dim: int, dropout_rate: float) -> None:
+    def __init__(
+        self, embedding_dim: int, projection_dim: int, dropout_rate: float
+    ) -> None:
         super().__init__()
 
         self.projection = nn.Linear(embedding_dim, projection_dim)

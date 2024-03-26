@@ -14,7 +14,16 @@ from dataloader import SigLIPDataLoader
 from models import SigmoidLoss, SigLIPModel
 
 
-def run_epoch(model, criterion, data_loader, rank, world_size, epoch, optimizer=None, train_mode=True):
+def run_epoch(
+    model,
+    criterion,
+    data_loader,
+    rank,
+    world_size,
+    epoch,
+    optimizer=None,
+    train_mode=True,
+):
     model.train() if train_mode else model.eval()
     ddp_loss = torch.tensor(0.0).to(rank)
     data_loader.set_epoch(epoch)
@@ -49,10 +58,14 @@ def fsdp_main(rank, world_size, args):
     os.environ["MASTER_PORT"] = "12345"
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-    train_dataset = getattr(dataloader, args["Train dataset name"])(**args["Train dataset parameters"])
+    train_dataset = getattr(dataloader, args["Train dataset name"])(
+        **args["Train dataset parameters"]
+    )
     train_loader = SigLIPDataLoader(train_dataset, **args["Dataloader parameters"])
 
-    test_dataset = getattr(dataloader, args["Test dataset name"])(**args["Test dataset parameters"])
+    test_dataset = getattr(dataloader, args["Test dataset name"])(
+        **args["Test dataset parameters"]
+    )
     test_loader = SigLIPDataLoader(test_dataset, **args["Dataloader parameters"])
 
     torch.cuda.set_device(rank)
@@ -65,8 +78,19 @@ def fsdp_main(rank, world_size, args):
     scheduler = StepLR(optimizer, **args["Scheduler parameters"])
 
     for epoch in range(1, args["Train parameters"]["epochs"] + 1):
-        run_epoch(model, criterion, train_loader, rank, world_size, epoch, optimizer, train_mode=True)
-        run_epoch(model, criterion, test_loader, rank, world_size, epoch, train_mode=False)
+        run_epoch(
+            model,
+            criterion,
+            train_loader,
+            rank,
+            world_size,
+            epoch,
+            optimizer,
+            train_mode=True,
+        )
+        run_epoch(
+            model, criterion, test_loader, rank, world_size, epoch, train_mode=False
+        )
         scheduler.step()
 
     if args["Train parameters"]["save_model"]:
@@ -85,4 +109,6 @@ if __name__ == "__main__":
     with open("config.yml") as file:
         args = yaml.load(file, yaml.Loader)
 
-    torch.multiprocessing.spawn(fsdp_main, args=(WORLD_SIZE, args), nprocs=WORLD_SIZE, join=True)
+    torch.multiprocessing.spawn(
+        fsdp_main, args=(WORLD_SIZE, args), nprocs=WORLD_SIZE, join=True
+    )

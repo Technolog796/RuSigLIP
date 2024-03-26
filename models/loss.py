@@ -8,7 +8,9 @@ class SigmoidLoss:
         self.temperature = temperature
         self.bias = bias
 
-    def __call__(self, img_emb: Tensor, txt_emb: Tensor, positive: bool = True) -> Tensor:
+    def __call__(
+        self, img_emb: Tensor, txt_emb: Tensor, positive: bool = True
+    ) -> Tensor:
         if img_emb.shape != txt_emb.shape:
             raise TypeError("Input image and text embeddings must be the same size.")
 
