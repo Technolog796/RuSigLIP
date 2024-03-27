@@ -7,25 +7,34 @@ import os
 from pandarallel import pandarallel
 from tqdm.auto import tqdm
 
+# Используем pandarallel для ускорения обработки данных, так как у нас их очень много и обычная обработка займет много времени
 pandarallel.initialize(progress_bar=True)
+
 
 def load_dataset_df(split):
     raw_dataset = pd.DataFrame(load_dataset("visheratin/laion-coco-nllb", split=split))
     raw_dataset.drop(columns=["url", "score"], inplace=True)
     raw_dataset["rus_captions"] = raw_dataset["captions"].parallel_apply(
-        lambda captions: [caption[1] for caption in captions if caption[0] == "rus_Cyrl"]
+        lambda captions: [
+            caption[1] for caption in captions if caption[0] == "rus_Cyrl"
+        ]
     )
-    dataset = raw_dataset[raw_dataset["rus_captions"].parallel_apply(lambda x: len(x) != 0)].copy()
+    dataset = raw_dataset[
+        raw_dataset["rus_captions"].parallel_apply(lambda x: len(x) != 0)
+    ].copy()
     del raw_dataset
     dataset.loc[:, "rus_captions"] = dataset.rus_captions.parallel_apply(lambda x: x[0])
     dataset.drop(columns=["captions"], inplace=True)
     return dataset
 
+
 train_dataset = load_dataset_df("train")
 val_dataset = load_dataset_df("test")
 
+
 def format_link(id: str) -> str:
     return f"https://nllb-data.com/{id}.jpg"
+
 
 def download_image(data, folder):
     id, en_cap, rus_cap = data
@@ -37,15 +46,22 @@ def download_image(data, folder):
     except Exception as e:
         return None, e
 
+
 def download_images(dataset, folder):
     skipped_images = 0
     valid_json = []
     with ThreadPoolExecutor(max_workers=20) as executor:
-        futures = {executor.submit(download_image, data, folder): data for data in zip(
-            dataset["id"], dataset["eng_caption"], dataset["rus_captions"])}
+        futures = {
+            executor.submit(download_image, data, folder): data
+            for data in zip(
+                dataset["id"], dataset["eng_caption"], dataset["rus_captions"]
+            )
+        }
 
-        # Set up tqdm progress bar
-        progress = tqdm(as_completed(futures), total=len(futures), desc="Downloading images")
+        # Делаем tqdm для отслеживания прогресса
+        progress = tqdm(
+            as_completed(futures), total=len(futures), desc="Downloading images"
+        )
         for future in progress:
             result, error = future.result()
             if error:
@@ -55,23 +71,33 @@ def download_images(dataset, folder):
 
     return valid_json, skipped_images
 
+
 def main():
+    # Проверяем наличие папок, если их нет, то создаем
+
     if not os.path.exists("laion-coco-nllb/train_images"):
         os.makedirs("laion-coco-nllb/train_images")
     if not os.path.exists("laion-coco-nllb/test_images"):
         os.makedirs("laion-coco-nllb/test_images")
 
-    valid_json_train, skip_images_train = download_images(train_dataset, "laion-coco-nllb/train_images")
+    valid_json_train, skip_images_train = download_images(
+        train_dataset, "laion-coco-nllb/train_images"
+    )
     print(f"Skipped {skip_images_train} images")
 
-    valid_json_val, skip_images_val = download_images(val_dataset, "laion-coco-nllb/test_images")
+    valid_json_val, skip_images_val = download_images(
+        val_dataset, "laion-coco-nllb/test_images"
+    )
     print(f"Skipped {skip_images_val} images")
+
+    # Сохраняем json файлы с валидными данными для обучения и валидации модели
 
     with open("laion-coco-nllb/train.json", "w") as f:
         json.dump(valid_json_train, f, indent=4)
 
     with open("laion-coco-nllb/test.json", "w") as f:
         json.dump(valid_json_val, f, indent=4)
+
 
 if __name__ == "__main__":
     main()
