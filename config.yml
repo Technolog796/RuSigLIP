@@ -4,7 +4,7 @@ Model parameters:
     pretrained: True
     freeze: True
   text_encoder_params:
-    model_name: "google-bert/bert-base-multilingual-cased"
+    model_name: "https://huggingface.co/intfloat/multilingual-e5-base"
     pretrained: True
     freeze: True
   connector_params:
@@ -17,7 +17,7 @@ Model parameters:
 Train dataset name: "WikiDataset"
 Train dataset parameters:
   dataset_directory: "datasets/wiki_dataset/"
-  tokenizer_name: "google-bert/bert-base-multilingual-cased"
+  tokenizer_name: "https://huggingface.co/intfloat/multilingual-e5-base"
   load_tokenized_files: False
   save_tokenized_files: True
   max_sequence_length: 64
@@ -25,7 +25,7 @@ Train dataset parameters:
 Test dataset name: "LaionCocoDataset"
 Test dataset parameters:
   dataset_directory: "datasets/laion_coco_dataset/"
-  tokenizer_name: "google-bert/bert-base-multilingual-cased"
+  tokenizer_name: "https://huggingface.co/intfloat/multilingual-e5-base"
   load_tokenized_files: False
   save_tokenized_files: True
   max_sequence_length: 64
