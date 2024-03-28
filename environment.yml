@@ -13,3 +13,4 @@ dependencies:
   - timm=0.9.16
   - tqdm=4.66.2
   - transformers=4.39.1
+  - wandb=0.16.5

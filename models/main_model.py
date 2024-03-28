@@ -10,8 +10,8 @@ class SigLIPModel(nn.Module):
         image_encoder_params: dict,
         text_encoder_params: dict,
         connector_params: dict,
-        image_embeddings_dim: int,
-        text_embeddings_dim: int,
+        image_embedding_size: int,
+        text_embedding_size: int,
     ):
         super().__init__()
 
@@ -19,10 +19,10 @@ class SigLIPModel(nn.Module):
         self.text_encoder = TextEncoder(**text_encoder_params)
 
         self.image_connector = Connector(
-            embedding_dim=image_embeddings_dim, **connector_params
+            connector_size=image_embedding_size, **connector_params
         )
         self.text_connector = Connector(
-            embedding_dim=text_embeddings_dim, **connector_params
+            connector_size=text_embedding_size, **connector_params
         )
 
     def forward(self, images, texts):

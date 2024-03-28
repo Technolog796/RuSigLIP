@@ -1,6 +1,7 @@
 import json
 
-from PIL import Image
+import cv2
+import numpy as np
 from transformers import AutoTokenizer
 
 import torch
@@ -37,27 +38,22 @@ class RuSigLIPDataset(Dataset):
         else:
             tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
-            tokenized_labels_en = tokenizer(
+            self.tokenized_labels_en = tokenizer(
                 self.labels_en,
                 max_length=max_sequence_length,
+                return_tensors="pt",
                 return_token_type_ids=False,
                 padding=True,
                 truncation=True,
             )
-            tokenized_labels_ru = tokenizer(
+            self.tokenized_labels_ru = tokenizer(
                 self.labels_ru,
                 max_length=max_sequence_length,
+                return_tensors="pt",
                 return_token_type_ids=False,
                 padding=True,
                 truncation=True,
             )
-
-            self.tokenized_labels_en = {
-                key: torch.tensor(value) for key, value in tokenized_labels_en.items()
-            }
-            self.tokenized_labels_ru = {
-                key: torch.tensor(value) for key, value in tokenized_labels_ru.items()
-            }
 
             if save_tokenized_files:
                 torch.save(
@@ -84,22 +80,21 @@ class RuSigLIPDataset(Dataset):
         }
 
     def get_image(self, idx: int) -> Tensor:
-        image_path = self.dataset_directory + "images/" + self.images_ids[idx]
-        image = Image.open(image_path)
+        image_path = self.dataset_directory + "images/" + self.images_ids[idx] + ".jpg"
+        image = cv2.imread(image_path)
+        # TODO: clearing datasets
+        if image is None:
+            image = np.zeros((256, 256, 3))
         image = self.transforms(image=image)["image"]
         return torch.tensor(image).permute(2, 0, 1).float()
 
-    def get_texts(self, indices: Tensor) -> dict[str, dict[str, Tensor]]:
-        return {
-            "en": {
-                "input_ids": self.tokenized_labels_en["input_ids"][indices],
-                "attention_mask": self.tokenized_labels_en["attention_mask"][indices],
-            },
-            "ru": {
-                "input_ids": self.tokenized_labels_ru["input_ids"][indices],
-                "attention_mask": self.tokenized_labels_ru["attention_mask"][indices],
-            },
-        }
+    def get_texts(self, indices: Tensor, language: str) -> dict[str, Tensor]:
+        if language == "en":
+            return {"input_ids": self.tokenized_labels_en["input_ids"][indices],
+                    "attention_mask": self.tokenized_labels_en["attention_mask"][indices]}
+        else:
+            return {"input_ids": self.tokenized_labels_en["input_ids"][indices],
+                    "attention_mask": self.tokenized_labels_en["attention_mask"][indices]}
 
     @staticmethod
     def _get_images_and_labels(filename: str) -> tuple[list[str], list[str], list[str]]:
@@ -112,7 +107,7 @@ class RuSigLIPDataset(Dataset):
 
         for idx, i in enumerate(data):
             images_ids.append(i["image_id"])
-            labels_en.append(i["caption_description_en"])
-            labels_ru.append(i["caption_description_ru"])
+            labels_en.append(i["caption_eng"])
+            labels_ru.append(i["caption_rus"])
 
         return images_ids, labels_en, labels_ru

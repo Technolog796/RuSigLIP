@@ -1,18 +1,21 @@
 import os
 import yaml
+from functools import partial
 
-from tqdm import tqdm
 import wandb
+from tqdm import tqdm
 
 import torch
 from torch.optim import Adam
 from torch.optim.lr_scheduler import StepLR
 import torch.distributed as dist
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP, BackwardPrefetch
+from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 
 import dataloader
 from dataloader import SigLIPDataLoader
 from models import SigmoidLoss, SigLIPModel
+from models.encoders import ImageEncoder, TextEncoder, Connector
 
 
 def run_epoch(
@@ -29,9 +32,13 @@ def run_epoch(
     ddp_loss = torch.tensor(0.0).to(rank)
     data_loader.set_epoch(epoch)
 
+    if rank == 0:
+        inner_pbar = tqdm(range(len(data_loader)), desc="Training epoch")
+
     with torch.set_grad_enabled(train_mode):
-        for images, texts in tqdm(data_loader):
-            optimizer.zero_grad()
+        for images, texts in data_loader:
+            if train_mode:
+                optimizer.zero_grad()
 
             img_emb, txt_emb = model(images, texts[0])
             loss = criterion(img_emb, txt_emb, positive=True)
@@ -40,7 +47,7 @@ def run_epoch(
                 img_emb, txt_emb = model(images, texts[i])
                 loss += criterion(img_emb, txt_emb, positive=False)
 
-            loss /= len(img_emb)
+            loss /= len(img_emb) * world_size
 
             if train_mode:
                 loss.backward()
@@ -48,8 +55,13 @@ def run_epoch(
 
             ddp_loss += loss.item()
 
+            if rank == 0:
+                inner_pbar.update()
+
+    dpp_loss /= len(data_loader)
     dist.all_reduce(ddp_loss, op=dist.ReduceOp.SUM)
     if rank == 0:
+        inner_pbar.close()
         mode = "Train" if train_mode else "Test"
         wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
         print(f"Epoch {epoch}\t{mode} loss: {ddp_loss.item():.6f}")
@@ -63,17 +75,28 @@ def fsdp_main(rank, world_size, args):
     train_dataset = getattr(dataloader, args["Train dataset name"])(
         **args["Train dataset parameters"]
     )
-    train_loader = SigLIPDataLoader(train_dataset, **args["Dataloader parameters"])
+    train_loader = SigLIPDataLoader(train_dataset, rank=rank, world_size=world_size, **args["Dataloader parameters"])
 
     test_dataset = getattr(dataloader, args["Test dataset name"])(
         **args["Test dataset parameters"]
     )
-    test_loader = SigLIPDataLoader(test_dataset, **args["Dataloader parameters"])
+    test_loader = SigLIPDataLoader(test_dataset, rank=rank, world_size=world_size, **args["Dataloader parameters"])
 
     torch.cuda.set_device(rank)
 
     model = SigLIPModel(**args["Model parameters"]).to(rank)
-    model = FSDP(model, use_orig_params=True)
+
+    siglip_auto_wrap_policy = partial(
+        transformer_auto_wrap_policy,
+        transformer_layer_cls={
+            ImageEncoder, TextEncoder, Connector
+        },
+    )
+
+    model = FSDP(model,
+                 use_orig_params=True,
+                 backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
+                 auto_wrap_policy=siglip_auto_wrap_policy)
 
     wandb.watch(model, log="all", log_freq=10)
 

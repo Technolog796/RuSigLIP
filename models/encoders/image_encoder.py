@@ -4,7 +4,7 @@ import timm  # Implement hugging face models
 
 class ImageEncoder(nn.Module):
     def __init__(
-        self, model_name: str, pretrained: bool = False, trainable: bool = True
+        self, model_name: str, pretrained: bool = False, freeze: bool = True
     ):
         super().__init__()
 
@@ -13,7 +13,7 @@ class ImageEncoder(nn.Module):
         )
 
         for name, param in self.model.named_parameters():
-            param.requires_grad = trainable
+            param.requires_grad = not freeze
 
     def forward(self, x):
         return self.model(x)
