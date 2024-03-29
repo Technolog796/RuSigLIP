@@ -1,5 +1,6 @@
 import random
 from typing import Iterator
+from concurrent.futures import ThreadPoolExecutor
 
 import torch
 from torch import Tensor
@@ -8,21 +9,13 @@ from .dataset import RuSigLIPDataset
 
 
 class SigLIPDataLoader:
-    def __init__(
-        self,
-        dataset: RuSigLIPDataset,
-        batch_size: int,
-        rank: int,
-        world_size: int,
-        seed: int = 42,
-    ):
+    def __init__(self, dataset: RuSigLIPDataset, batch_size: int, rank: int, world_size: int, seed: int = 42):
         self.dataset = dataset
 
         self.batch_size = batch_size
         self.chunk_size = batch_size // world_size
 
         self.rank = rank
-        self.world_size = world_size
 
         self.epoch = 0
         self.seed = seed
@@ -48,14 +41,10 @@ class SigLIPDataLoader:
     def set_epoch(self, epoch: int) -> None:
         self.epoch = epoch
 
-    def _get_batch(
-        self, indices: Tensor, language: str
-    ) -> tuple[Tensor, list[dict[str, Tensor]]]:
-        images = torch.stack([self.dataset.get_image(idx) for idx in indices[0]])
-        texts = [
-            self.dataset.get_texts(indices[chunk_idx])[language]
-            for chunk_idx in range(self.world_size)
-        ]
+    def _get_batch(self, indices: tuple[Tensor], language: str) -> tuple[Tensor, list[dict[str, Tensor]]]:
+        with ThreadPoolExecutor() as executor:
+            images = torch.stack(list(executor.map(self.dataset.get_image, indices[0])))
+            texts = list(executor.map(lambda idx: self.dataset.get_texts(idx, language), indices))
         return images, texts
 
     def _get_indices(self) -> Tensor:

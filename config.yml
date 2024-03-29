@@ -4,34 +4,35 @@ Model parameters:
     pretrained: True
     freeze: True
   text_encoder_params:
-    model_name: "https://huggingface.co/intfloat/multilingual-e5-base"
+    model_name: "intfloat/multilingual-e5-base"
     pretrained: True
     freeze: True
   connector_params:
-    connectors: 1
-    connector_size: 256
-    dropout: 0.1
+    projection_size: 256
+    dropout_rate: 0.1
   image_embedding_size: 2048
   text_embedding_size: 768
 
-Train dataset name: "WikiDataset"
+Train dataset name: "LaionCocoDataset"
 Train dataset parameters:
-  dataset_directory: "datasets/wiki_dataset/"
-  tokenizer_name: "https://huggingface.co/intfloat/multilingual-e5-base"
-  load_tokenized_files: False
+  dataset_directory: "/home/jovyan/rusiglip/laion-coco-nllb/train/"
+  tokenizer_name: "intfloat/multilingual-e5-base"
+  load_tokenized_files: True
   save_tokenized_files: True
-  max_sequence_length: 64
+  max_sequence_length: 16
+  target_image_size: 224
 
 Test dataset name: "LaionCocoDataset"
 Test dataset parameters:
-  dataset_directory: "datasets/laion_coco_dataset/"
-  tokenizer_name: "https://huggingface.co/intfloat/multilingual-e5-base"
-  load_tokenized_files: False
+  dataset_directory: "/home/jovyan/rusiglip/laion-coco-nllb/test/"
+  tokenizer_name: "intfloat/multilingual-e5-base"
+  load_tokenized_files: True
   save_tokenized_files: True
-  max_sequence_length: 64
+  max_sequence_length: 16
+  target_image_size: 224
 
 Dataloader parameters:
-  batch_size: 250
+  batch_size: 5000
   seed: 42
 
 Loss parameters:
@@ -39,13 +40,13 @@ Loss parameters:
   bias: -10.0
 
 Optimizer parameters:
-  lr: 0.001
+  lr: 0.0001
 
 Scheduler parameters:
-  step_size: 10
+  step_size: 5
   gamma: 0.9
 
 Train parameters:
-  epochs: 100
-  save_model: False
+  epochs: 50
+  save_model: True
   save_directory: "trained_models/model01.pt"

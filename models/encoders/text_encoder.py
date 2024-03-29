@@ -10,7 +10,7 @@ def average_pool(last_hidden_states: Tensor, attention_mask: Tensor) -> Tensor:
 
 class TextEncoder(nn.Module):
     def __init__(
-        self, model_name: str, pretrained: bool = False, trainable: bool = True
+        self, model_name: str, pretrained: bool = False, freeze: bool = True
     ):
         super().__init__()
 
@@ -20,7 +20,7 @@ class TextEncoder(nn.Module):
             self.model = AutoModel.from_config(model_name)
 
         for name, param in self.model.named_parameters():
-            param.requires_grad = trainable
+            param.requires_grad = not freeze
 
     def forward(self, input_ids, attention_mask):
         outputs = self.model(input_ids, attention_mask)

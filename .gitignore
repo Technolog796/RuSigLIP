@@ -1,3 +1,5 @@
-/.idea
+/.idea/
 datasets/
+trained_models/
 __pycache__/
+wandb/

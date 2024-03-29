@@ -28,8 +28,8 @@ class LaionCocoDataset(RuSigLIPDataset):
             [
                 A.Resize(target_image_size, target_image_size, always_apply=True),
                 A.Normalize(
-                    mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225],
+                    mean=[0.48145466, 0.4578275, 0.40821073],
+                    std=[0.26862954, 0.26130258, 0.27577711],
                     max_pixel_value=255.0,
                     always_apply=True,
                 ),
