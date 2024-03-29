@@ -33,3 +33,8 @@ class SigLIPModel(nn.Module):
             )
         )
         return image_embeddings, text_embeddings
+
+    def predict(self, images, texts):
+        image_embeddings, text_embeddings = self.forward(images, texts)
+        # return image_embeddings, text_embeddings
+        return (1 * image_embeddings @ text_embeddings.T).argmax(dim=1)
