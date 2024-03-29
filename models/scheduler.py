@@ -3,9 +3,14 @@
 #
 #
 # class CosineDecayWithLinearWarmUp(LambdaLR):
-#     def __init__(self, optimizer, warmup_steps, min_lr, max_lr, decay, last_epoch=-1):
+#     def __init__(self, optimizer, warmup_size, lr_0, lr_mult, t_0, t_mult, last_epoch=-1):
 #         super(optimizer, )
-#         self.warmup_steps = warmup_steps
+#         self.warmup_size = warmup_size
+#         self.lr_0 = lr_0
+#         self.lr_mult = lr_mult
+#         self.t_start = 0
+#         self.t_end = t_0
+#         self.t_mult = t_mult
 #         self.total_steps = total_steps
 #         self.cycles = cycles
 #         super(CosineWithLinearWarmupScheduler, self).__init__(optimizer, last_epoch)

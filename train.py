@@ -58,7 +58,7 @@ def run_epoch(
             if rank == 0:
                 inner_pbar.update()
 
-    dpp_loss /= len(data_loader)
+    ddp_loss /= len(data_loader)
     dist.all_reduce(ddp_loss, op=dist.ReduceOp.SUM)
     if rank == 0:
         inner_pbar.close()
@@ -98,7 +98,10 @@ def fsdp_main(rank, world_size, args):
                  backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
                  auto_wrap_policy=siglip_auto_wrap_policy)
 
-    wandb.watch(model, log="all", log_freq=10)
+    if rank == 0:
+        wandb.login()
+        wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
+        wandb.watch(model, log="all", log_freq=10)
 
     criterion = SigmoidLoss(**args["Loss parameters"])
     optimizer = Adam(model.parameters(), **args["Optimizer parameters"])
@@ -136,9 +139,6 @@ if __name__ == "__main__":
 
     with open("config.yml") as file:
         args = yaml.load(file, yaml.Loader)
-
-    wandb.login()
-    wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
 
     torch.multiprocessing.spawn(
         fsdp_main, args=(WORLD_SIZE, args), nprocs=WORLD_SIZE, join=True

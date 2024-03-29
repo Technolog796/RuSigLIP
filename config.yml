@@ -19,7 +19,7 @@ Train dataset parameters:
   tokenizer_name: "intfloat/multilingual-e5-base"
   load_tokenized_files: True
   save_tokenized_files: True
-  max_sequence_length: 32
+  max_sequence_length: 16
   target_image_size: 224
 
 Test dataset name: "LaionCocoDataset"
@@ -28,7 +28,7 @@ Test dataset parameters:
   tokenizer_name: "intfloat/multilingual-e5-base"
   load_tokenized_files: True
   save_tokenized_files: True
-  max_sequence_length: 32
+  max_sequence_length: 16
   target_image_size: 224
 
 Dataloader parameters:
@@ -40,13 +40,13 @@ Loss parameters:
   bias: -10.0
 
 Optimizer parameters:
-  lr: 0.001
+  lr: 0.0001
 
 Scheduler parameters:
-  step_size: 10
+  step_size: 5
   gamma: 0.9
 
 Train parameters:
-  epochs: 100
-  save_model: False
+  epochs: 50
+  save_model: True
   save_directory: "trained_models/model01.pt"
