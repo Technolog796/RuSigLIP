@@ -90,11 +90,15 @@ class RuSigLIPDataset(Dataset):
 
     def get_texts(self, indices: Tensor, language: str) -> dict[str, Tensor]:
         if language == "en":
-            return {"input_ids": self.tokenized_labels_en["input_ids"][indices],
-                    "attention_mask": self.tokenized_labels_en["attention_mask"][indices]}
+            return {
+                "input_ids": self.tokenized_labels_en["input_ids"][indices],
+                "attention_mask": self.tokenized_labels_en["attention_mask"][indices],
+            }
         else:
-            return {"input_ids": self.tokenized_labels_en["input_ids"][indices],
-                    "attention_mask": self.tokenized_labels_en["attention_mask"][indices]}
+            return {
+                "input_ids": self.tokenized_labels_en["input_ids"][indices],
+                "attention_mask": self.tokenized_labels_en["attention_mask"][indices],
+            }
 
     @staticmethod
     def _get_images_and_labels(filename: str) -> tuple[list[str], list[str], list[str]]:

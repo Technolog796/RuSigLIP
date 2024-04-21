@@ -75,12 +75,16 @@ def fsdp_main(rank, world_size, args):
     train_dataset = getattr(dataloader, args["Train dataset name"])(
         **args["Train dataset parameters"]
     )
-    train_loader = SigLIPDataLoader(train_dataset, rank=rank, world_size=world_size, **args["Dataloader parameters"])
+    train_loader = SigLIPDataLoader(
+        train_dataset, rank=rank, world_size=world_size, **args["Dataloader parameters"]
+    )
 
     test_dataset = getattr(dataloader, args["Test dataset name"])(
         **args["Test dataset parameters"]
     )
-    test_loader = SigLIPDataLoader(test_dataset, rank=rank, world_size=world_size, **args["Dataloader parameters"])
+    test_loader = SigLIPDataLoader(
+        test_dataset, rank=rank, world_size=world_size, **args["Dataloader parameters"]
+    )
 
     torch.cuda.set_device(rank)
 
@@ -88,15 +92,15 @@ def fsdp_main(rank, world_size, args):
 
     siglip_auto_wrap_policy = partial(
         transformer_auto_wrap_policy,
-        transformer_layer_cls={
-            ImageEncoder, TextEncoder, Connector
-        },
+        transformer_layer_cls={ImageEncoder, TextEncoder, Connector},
     )
 
-    model = FSDP(model,
-                 use_orig_params=True,
-                 backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
-                 auto_wrap_policy=siglip_auto_wrap_policy)
+    model = FSDP(
+        model,
+        use_orig_params=True,
+        backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
+        auto_wrap_policy=siglip_auto_wrap_policy,
+    )
 
     if rank == 0:
         wandb.login()
