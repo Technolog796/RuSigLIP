@@ -3,7 +3,9 @@ import timm  # Implement hugging face models
 
 
 class ImageEncoder(nn.Module):
-    def __init__(self, model_name: str, pretrained=False, freeze: bool = False):
+    def __init__(
+        self, model_name: str, pretrained: bool = False, freeze: bool = True
+    ):
         super().__init__()
 
         self.model = timm.create_model(
