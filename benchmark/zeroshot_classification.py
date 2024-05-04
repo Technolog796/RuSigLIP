@@ -1,6 +1,7 @@
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import torch
+import numpy as np
 from datasets import get_dataset
 from datasets import all_datasets
 from transformers import AutoProcessor, AutoModel
@@ -14,34 +15,95 @@ def accuracy(true, probs, k=1):
     return right / len(true)
 
 
-def classification(X, y, labels, model_path="google/siglip-base-patch16-224", size=-1):
-    if size == -1:
-        size = X.shape[0]
+def precision_macro(names, probs, k=1):
+    num_of_classes = len(np.unique(names))
+    res = 0
+    for c in np.unique(names).tolist():
+        true = [1 if x == c else 0 for x in names]
+        pred = [1 if c in (p.topk(k=k, dim=-1)[1]).numpy() else 0 for p in probs]
+        tp = sum([1 if t == 1 and p == 1 else 0 for t, p in zip(true, pred)])
+        fp = sum([1 if t == 0 and p == 1 else 0 for t, p in zip(true, pred)])
+        res += (tp / (tp + fp) if (tp + fp) != 0 else 0)
+    return res / num_of_classes
+
+
+def recall_macro(names, probs, k=1):
+    num_of_classes = len(np.unique(names))
+    res = 0
+    for c in np.unique(names).tolist():
+        true = [1 if x == c else 0 for x in names]
+        pred = [1 if c in (p.topk(k=k, dim=-1)[1]).numpy() else 0 for p in probs]
+        tp = sum([1 if t == 1 and p == 1 else 0 for t, p in zip(true, pred)])
+        fn = sum([1 if t == 1 and p == 0 else 0 for t, p in zip(true, pred)])
+        res += (tp / (tp + fn) if (tp + fn) != 0 else 0)
+    return res / num_of_classes
+
+
+def f1_macro(names, probs, k=1):
+    p = precision_macro(names, probs, k)
+    r = recall_macro(names, probs, k)
+    return 0 if p + r == 0 else (2 * p * r) / (p + r)
+
+
+def classification_siglip(dataset, labels, size=-1):
+    if size == -1 or size > len(dataset):
+        size = len(dataset)
     probs = []
     true = []
 
-    model = AutoModel.from_pretrained(model_path)
-    processor = AutoProcessor.from_pretrained(model_path)
+    model = AutoModel.from_pretrained("google/siglip-base-patch16-224")
+    processor = AutoProcessor.from_pretrained("google/siglip-base-patch16-224")
     for i in range(size):
         inputs = processor(
-            text=labels, images=X[i], padding="max_length", return_tensors="pt"
+            text=labels, images=dataset[i][0], padding="max_length", return_tensors="pt"
         )
         outputs = model(**inputs)
         logits_per_image = outputs.logits_per_image
         probs.append(torch.sigmoid(logits_per_image))
-        true.append(y[i])
+        true.append(dataset[i][1])
     return true, probs
 
 
-def evaluate(model, dataset_name="all", k=1):
+def classification_clip(dataset, labels, size=-1):
+    if size == -1 or size > len(dataset):
+        size = len(dataset)
+    probs = []
+    true = []
+
+    processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
+    model = AutoModel.from_pretrained("openai/clip-vit-base-patch32")
+    for i in range(size):
+        inputs = processor(
+            text=labels, images=dataset[i][0], return_tensors="pt", padding=True, truncation=True
+        )
+        outputs = model(**inputs)
+        logits_per_image = outputs.logits_per_image
+        probs.append(logits_per_image.softmax(dim=1))
+        true.append(dataset[i][1])
+    return true, probs
+
+
+def evaluate(model, dataset_name='all', split='test', size=-1, k=1):
     result = {}
     if dataset_name == "all":
         for name in all_datasets:
-            X, y, labels = get_dataset(name)
-            true, probs = classification(X, y, labels, model, size=10)
-            result[name] = accuracy(true, probs, k)
+            dataset, labels = get_dataset(name, split=split)
+            true, probs = classification_siglip(dataset, labels, size=size)
+            result[name] = {}
+            result[name]['accuracy'] = accuracy(true, probs, k)
+            p = precision_macro(true, probs, k)
+            result[name]['precision_macro'] = p
+            r = recall_macro(true, probs, k)
+            result[name]['recall_macro'] = r
+            result[name]['f1_macro'] = 0 if p + r == 0 else (2 * p * r) / (p + r)
     else:
-        X, y, labels = get_dataset(dataset_name)
-        true, probs = classification(X, y, labels, model, size=10)
-        result[dataset_name] = accuracy(true, probs, k)
+        dataset, labels = get_dataset(dataset_name, split=split)
+        true, probs = classification_siglip(dataset, labels, size=size)
+        result[dataset_name] = {}
+        result[dataset_name]['accuracy'] = accuracy(true, probs, k)
+        p = precision_macro(true, probs, k)
+        result[dataset_name]['precision_macro'] = p
+        r = recall_macro(true, probs, k)
+        result[dataset_name]['recall_macro'] = r
+        result[dataset_name]['f1_macro'] = 0 if p + r == 0 else (2 * p * r) / (p + r)
     return result
