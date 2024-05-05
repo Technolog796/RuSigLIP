@@ -2,7 +2,7 @@ import os
 import yaml
 from functools import partial
 
-import wandb
+#import wandb
 from tqdm import tqdm
 
 import torch
@@ -63,13 +63,17 @@ def run_epoch(
     if rank == 0:
         inner_pbar.close()
         mode = "Train" if train_mode else "Test"
+<<<<<<< HEAD
         # wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
+=======
+        #wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
+>>>>>>> b3d50d9fc9f208780e4c8c355da914c148fe0243
         print(f"Epoch {epoch}\t{mode} loss: {ddp_loss.item():.6f}")
 
 
 def fsdp_main(rank, world_size, args):
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "12345"
+    os.environ["MASTER_PORT"] = "12346"
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
     train_dataset = getattr(dataloader, args["Train dataset name"])(
@@ -100,9 +104,15 @@ def fsdp_main(rank, world_size, args):
 
     if rank == 0:
         pass
+<<<<<<< HEAD
         # wandb.login()
         # wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
         # wandb.watch(model, log="all", log_freq=10)
+=======
+        #wandb.login()
+        #wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
+        #wandb.watch(model, log="all", log_freq=10)
+>>>>>>> b3d50d9fc9f208780e4c8c355da914c148fe0243
 
     criterion = SigmoidLoss(**args["Loss parameters"])
     optimizer = Adam(model.parameters(), **args["Optimizer parameters"])
