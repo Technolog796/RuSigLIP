@@ -83,11 +83,11 @@ def classification_clip(dataset, labels, size=-1):
     return true, probs
 
 
-def evaluate(model, dataset_name='all', split='test', size=-1, k=1):
+def evaluate(model, dataset_name='all', split='test', size=-1, language='en', k=1):
     result = {}
     if dataset_name == "all":
         for name in all_datasets:
-            dataset, labels = get_dataset(name, split=split)
+            dataset, labels = get_dataset(name, split=split, language=language)
             true, probs = classification_siglip(dataset, labels, size=size)
             result[name] = {}
             result[name]['accuracy'] = accuracy(true, probs, k)
@@ -97,7 +97,7 @@ def evaluate(model, dataset_name='all', split='test', size=-1, k=1):
             result[name]['recall_macro'] = r
             result[name]['f1_macro'] = 0 if p + r == 0 else (2 * p * r) / (p + r)
     else:
-        dataset, labels = get_dataset(dataset_name, split=split)
+        dataset, labels = get_dataset(dataset_name, split=split, language=language)
         true, probs = classification_siglip(dataset, labels, size=size)
         result[dataset_name] = {}
         result[dataset_name]['accuracy'] = accuracy(true, probs, k)
