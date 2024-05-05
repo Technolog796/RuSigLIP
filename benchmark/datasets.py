@@ -1,10 +1,13 @@
 from torchvision.datasets import CIFAR10, CIFAR100, DTD, Food101, OxfordIIITPet
+import torchvision
 import json
+from typing import Tuple, List, Union
 
 all_datasets = ["cifar10", "cifar100", "dtd", "food101", "oxfordiiitpet"]
 
 
-def get_dataset(dataset_name, split="test", language="en"):
+def get_dataset(dataset_name: str, split: str = "test", language: str = "en") -> Tuple[Union[torchvision.datasets.cifar.CIFAR10, torchvision.datasets.cifar.CIFAR100, torchvision.datasets.dtd.DTD,
+                      torchvision.datasets.food101.Food101, torchvision.datasets.oxford_iiit_pet.OxfordIIITPet], List[str]]:
     if dataset_name == "cifar10":
         dataset = CIFAR10(root='.', download=True)
     elif dataset_name == "cifar100":

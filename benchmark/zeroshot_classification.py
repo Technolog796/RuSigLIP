@@ -1,13 +1,16 @@
 import os
+
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import torch
 import numpy as np
 from datasets import get_dataset
 from datasets import all_datasets
 from transformers import AutoProcessor, AutoModel
+from typing import Dict, List, Tuple, Union
+import torchvision
 
 
-def accuracy(true, probs, k=1):
+def accuracy(true: List[int], probs: List[torch.Tensor], k: int = 1) -> float:
     right = 0
     for name, p in zip(true, probs):
         _, top = p.topk(k, dim=-1)
@@ -15,7 +18,7 @@ def accuracy(true, probs, k=1):
     return right / len(true)
 
 
-def precision_macro(names, probs, k=1):
+def precision_macro(names: List[int], probs: List[torch.Tensor], k: int = 1) -> float:
     num_of_classes = len(np.unique(names))
     res = 0
     for c in np.unique(names).tolist():
@@ -27,7 +30,7 @@ def precision_macro(names, probs, k=1):
     return res / num_of_classes
 
 
-def recall_macro(names, probs, k=1):
+def recall_macro(names: List[int], probs: List[torch.Tensor], k: int = 1) -> float:
     num_of_classes = len(np.unique(names))
     res = 0
     for c in np.unique(names).tolist():
@@ -39,13 +42,16 @@ def recall_macro(names, probs, k=1):
     return res / num_of_classes
 
 
-def f1_macro(names, probs, k=1):
+def f1_macro(names: List[int], probs: List[torch.Tensor], k: int = 1) -> float:
     p = precision_macro(names, probs, k)
     r = recall_macro(names, probs, k)
     return 0 if p + r == 0 else (2 * p * r) / (p + r)
 
 
-def classification_siglip(dataset, labels, size=-1):
+def classification_siglip(dataset: Union[torchvision.datasets.cifar.CIFAR10, torchvision.datasets.cifar.CIFAR100,
+                          torchvision.datasets.dtd.DTD, torchvision.datasets.food101.Food101,
+                          torchvision.datasets.oxford_iiit_pet.OxfordIIITPet],
+                          labels: List[str], size: int = -1) -> Tuple[List[int], List[torch.Tensor]]:
     if size == -1 or size > len(dataset):
         size = len(dataset)
     probs = []
@@ -64,7 +70,10 @@ def classification_siglip(dataset, labels, size=-1):
     return true, probs
 
 
-def classification_clip(dataset, labels, size=-1):
+def classification_clip(dataset: Union[torchvision.datasets.cifar.CIFAR10, torchvision.datasets.cifar.CIFAR100,
+                        torchvision.datasets.dtd.DTD, torchvision.datasets.food101.Food101,
+                        torchvision.datasets.oxford_iiit_pet.OxfordIIITPet],
+                        labels: List[str], size: int = -1) -> Tuple[List[int], List[torch.Tensor]]:
     if size == -1 or size > len(dataset):
         size = len(dataset)
     probs = []
@@ -83,7 +92,8 @@ def classification_clip(dataset, labels, size=-1):
     return true, probs
 
 
-def evaluate(model, dataset_name='all', split='test', size=-1, language='en', k=1):
+def evaluate(model: str, dataset_name: str = 'all', split: str = 'test', size: int = -1, language: str = 'en',
+             k: int = 1) -> Dict[str, Dict[str, float]]:
     result = {}
     if dataset_name == "all":
         for name in all_datasets:
