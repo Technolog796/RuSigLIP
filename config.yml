@@ -2,11 +2,11 @@ Model parameters:
   image_encoder_params:
     model_name: "resnet50"
     pretrained: True
-    freeze: True
+    freeze: False
   text_encoder_params:
     model_name: "intfloat/multilingual-e5-base"
     pretrained: True
-    freeze: True
+    freeze: False
   connector_params:
     projection_size: 256
     dropout_rate: 0.1
@@ -32,7 +32,7 @@ Test dataset parameters:
   target_image_size: 224
 
 Dataloader parameters:
-  batch_size: 5000
+  batch_size: 100
   seed: 42
 
 Loss parameters:
@@ -48,5 +48,5 @@ Scheduler parameters:
 
 Train parameters:
   epochs: 50
-  save_model: True
-  save_directory: "trained_models/model01.pt"
+  save_model: False
+  save_directory: "trained_models/model02.pt"

@@ -1,9 +1,11 @@
 import json
+import warnings
 
-import cv2
-import numpy as np
+import PIL
+from PIL import Image
 from transformers import AutoTokenizer
 
+import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -21,7 +23,7 @@ class RuSigLIPDataset(Dataset):
         super().__init__()
 
         self.dataset_directory = dataset_directory
-        self.transforms = lambda image: {"image": image}
+        self.transforms = lambda image: image
 
         self.images_ids, self.labels_en, self.labels_ru = self._get_images_and_labels(
             dataset_directory + "data.json"
@@ -81,20 +83,24 @@ class RuSigLIPDataset(Dataset):
 
     def get_image(self, idx: int) -> Tensor:
         image_path = self.dataset_directory + "images/" + self.images_ids[idx] + ".jpg"
-        image = cv2.imread(image_path)
-        # TODO: clearing datasets
-        if image is None:
-            image = np.zeros((256, 256, 3))
-        image = self.transforms(image=image)["image"]
-        return torch.tensor(image).permute(2, 0, 1).float()
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+
+                image = Image.open(image_path)
+                image = image.convert("RGB")
+        except PIL.UnidentifiedImageError:
+            image = Image.fromarray(np.zeros([256, 256, 3], dtype=np.uint8))
+        image = self.transforms(image)
+        return image
 
     def get_texts(self, indices: Tensor, language: str) -> dict[str, Tensor]:
         if language == "en":
             return {"input_ids": self.tokenized_labels_en["input_ids"][indices],
                     "attention_mask": self.tokenized_labels_en["attention_mask"][indices]}
-        else:
-            return {"input_ids": self.tokenized_labels_en["input_ids"][indices],
-                    "attention_mask": self.tokenized_labels_en["attention_mask"][indices]}
+        elif language == "ru":
+            return {"input_ids": self.tokenized_labels_ru["input_ids"][indices],
+                    "attention_mask": self.tokenized_labels_ru["attention_mask"][indices]}
 
     @staticmethod
     def _get_images_and_labels(filename: str) -> tuple[list[str], list[str], list[str]]:

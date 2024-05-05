@@ -63,7 +63,7 @@ def run_epoch(
     if rank == 0:
         inner_pbar.close()
         mode = "Train" if train_mode else "Test"
-        wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
+        # wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
         print(f"Epoch {epoch}\t{mode} loss: {ddp_loss.item():.6f}")
 
 
@@ -99,9 +99,10 @@ def fsdp_main(rank, world_size, args):
                  auto_wrap_policy=siglip_auto_wrap_policy)
 
     if rank == 0:
-        wandb.login()
-        wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
-        wandb.watch(model, log="all", log_freq=10)
+        pass
+        # wandb.login()
+        # wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
+        # wandb.watch(model, log="all", log_freq=10)
 
     criterion = SigmoidLoss(**args["Loss parameters"])
     optimizer = Adam(model.parameters(), **args["Optimizer parameters"])

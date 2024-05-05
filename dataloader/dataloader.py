@@ -43,8 +43,10 @@ class SigLIPDataLoader:
 
     def _get_batch(self, indices: tuple[Tensor], language: str) -> tuple[Tensor, list[dict[str, Tensor]]]:
         with ThreadPoolExecutor() as executor:
+            print(f"IN{self.rank}")
             images = torch.stack(list(executor.map(self.dataset.get_image, indices[0])))
             texts = list(executor.map(lambda idx: self.dataset.get_texts(idx, language), indices))
+            print(f"OUT{self.rank}")
         return images, texts
 
     def _get_indices(self) -> Tensor:
