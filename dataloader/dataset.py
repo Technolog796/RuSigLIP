@@ -1,3 +1,4 @@
+import os
 import json
 import warnings
 
@@ -19,22 +20,32 @@ class RuSigLIPDataset(Dataset):
         load_tokenized_files: bool = True,
         save_tokenized_files: bool = True,
         max_sequence_length: int = 512,
+        train: bool = True,
+        only_main_process: bool = False,
+        rank: int = 0,
     ):
         super().__init__()
 
-        self.dataset_directory = dataset_directory
+        self.only_main_process = only_main_process
+        self.rank = rank
+
+        if train:
+            self.dataset_directory = os.path.join(dataset_directory, "train")
+        else:
+            self.dataset_directory = os.path.join(dataset_directory, "test")
+
         self.transforms = lambda image: image
 
         self.images_ids, self.labels_en, self.labels_ru = self._get_images_and_labels(
-            dataset_directory + "data.json"
+            os.path.join(self.dataset_directory, "data.json")
         )
 
         if load_tokenized_files:
             self.tokenized_labels_en = torch.load(
-                dataset_directory + "tokenized_labels_en.pt"
+                os.path.join(self.dataset_directory, "tokenized_labels_en.pt")
             )
             self.tokenized_labels_ru = torch.load(
-                dataset_directory + "tokenized_labels_ru.pt"
+                os.path.join(self.dataset_directory, "tokenized_labels_ru.pt")
             )
 
         else:
@@ -60,17 +71,19 @@ class RuSigLIPDataset(Dataset):
             if save_tokenized_files:
                 torch.save(
                     self.tokenized_labels_en,
-                    dataset_directory + "tokenized_labels_en.pt",
+                    os.path.join(self.dataset_directory, "tokenized_labels_en.pt"),
                 )
                 torch.save(
                     self.tokenized_labels_ru,
-                    dataset_directory + "tokenized_labels_ru.pt",
+                    os.path.join(self.dataset_directory, "tokenized_labels_ru.pt"),
                 )
 
     def __len__(self) -> int:
         return len(self.images_ids)
 
     def __getitem__(self, idx: int) -> dict:
+        if self.only_main_process and self.rank != 0:
+            return {}
         return {
             "image": self.get_image(idx),
             "label_en": self.labels_en[idx],
@@ -82,11 +95,10 @@ class RuSigLIPDataset(Dataset):
         }
 
     def get_image(self, idx: int) -> Tensor:
-        image_path = self.dataset_directory + "images/" + self.images_ids[idx] + ".jpg"
+        image_path = os.path.join(self.dataset_directory, "images", self.images_ids[idx] + ".jpg")
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-
                 image = Image.open(image_path)
                 image = image.convert("RGB")
         except PIL.UnidentifiedImageError:

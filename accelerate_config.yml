@@ -1,0 +1,29 @@
+compute_environment: LOCAL_MACHINE
+
+distributed_type: DEEPSPEED # MULTI_GPU / DEEPSPEED / FSDP
+mixed_precision: "no" # no / fp8 / fp16 / bf16
+
+machine_rank: 0
+num_machines: 1
+num_processes: 2
+gpu_ids: all
+
+deepspeed_config:
+   gradient_accumulation_steps: 1
+   zero3_init_flag: False
+   zero_stage: 0 # 0 / 1 / 2 / 3
+
+fsdp_config:
+   fsdp_backward_prefetch: BACKWARD_POST # BACKWARD_PRE / BACKWARD_POST / NO_PREFETCH
+   fsdp_offload_params: True
+   fsdp_sharding_strategy: FULL_SHARD # FULL_SHARD / SHARD_GRAD_OP / NO_SHARD / HYBRID_SHARD / HYBRID_SHARD_ZERO2
+   fsdp_state_dict_type: FULL_STATE_DICT # FULL_STATE_DICT / SHARDED_STATE_DICT / LOCAL_STATE_DICT
+   fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+   fsdp_transformer_layer_cls_to_wrap: ImageEncoder,TextEncoder,Connector
+
+main_training_function: main
+downcast_bf16: "no"
+dynamo_backend: "no"
+rdzv_backend: static
+same_network: True
+use_cpu: False

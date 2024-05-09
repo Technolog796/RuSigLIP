@@ -6,7 +6,7 @@ channels:
   - nvidia
 dependencies:
   - accelerate=0.30.0
-  - albumentations=1.4.1
+  - deepspeed
   - pillow=10.2.0
   - python=3.11.8
   - pytorch=2.2.1

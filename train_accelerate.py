@@ -1,21 +1,31 @@
 import os
 import yaml
 
-import torch
-from torch.optim import Adam
-from torch.optim.lr_scheduler import StepLR
-from torch.utils.data import DataLoader
-
 import wandb
 from tqdm import tqdm
 
-import accelerate
-from accelerate import Accelerator
+import torch
+from torch.utils.data import DataLoader
+
+from galore_torch import GaLoreAdamW
+from transformers import get_cosine_schedule_with_warmup
+from accelerate import Accelerator, DistributedType, DistributedDataParallelKwargs, DataLoaderConfiguration
 
 import dataloader
-from dataloader.dataloader_accelerate import SigLIPDataLoader
+from dataloader.dataloader import SigLIPDataLoader
+from dataloader.collate_function import get_collate_fn
 from models import SigmoidLoss, SigLIPModel
-from models.encoders import ImageEncoder, TextEncoder, Connector
+
+
+def get_galore_optimizer(model, args):
+    param_groups = []
+    galore_rank = args["GaLore parameters"]["rank"]
+    for param in model.parameters():
+        if len(param.shape) == 2 and param.shape[0] > galore_rank and param.shape[1] > galore_rank:
+            param_groups.append({'params': param, **args["GaLore parameters"]})
+        else:
+            param_groups.append({'params': param})
+    return GaLoreAdamW(param_groups, **args["Optimizer parameters"])
 
 
 def run_epoch(
@@ -23,112 +33,142 @@ def run_epoch(
     model,
     criterion,
     data_loader,
+    epoch,
     optimizer=None,
+    scheduler=None,
     train_mode=True,
 ):
     model.train() if train_mode else model.eval()
-    epoch_loss = 0
+    ddp_loss = 0
 
-    for batch in tqdm(data_loader):
-        images = batch["image"]
-        texts = {"input_ids": batch["input_ids_en"], "attention_mask": batch["attention_mask_en"]}
+    if accelerator.is_main_process:
+        inner_pbar = tqdm(range(len(data_loader)), desc="Training epoch")
+
+    for images, all_texts in data_loader:
+        batch_size = len(images) * len(all_texts)
 
         if train_mode:
             optimizer.zero_grad()
 
-        img_emb, txt_emb = model(images, texts)
-        loss = criterion(img_emb, txt_emb)
+        img_emb, txt_emb = model(images, all_texts[0])
+        loss = criterion(img_emb, txt_emb, positive=True) / batch_size
 
         if train_mode:
             accelerator.backward(loss)
+
+        for texts in all_texts[1:]:
+            img_emb, txt_emb = model(images, texts)
+            loss = criterion(img_emb, txt_emb, positive=False) / batch_size
+            ddp_loss += loss.item()
+            if train_mode:
+                accelerator.backward(loss)
+
+        if train_mode:
             optimizer.step()
+            scheduler.step()
 
-        epoch_loss += loss.item()
+        if accelerator.is_main_process:
+            inner_pbar.update()
 
-    epoch_loss /= len(data_loader.dataset)
+        ddp_loss += loss.item()
 
-    return epoch_loss.item()
+    ddp_loss /= len(data_loader)
+
+    if accelerator.is_main_process:
+        mode = "Train" if train_mode else "Test"
+        # wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
+        print(f"Epoch {epoch}\t{mode} loss: {ddp_loss:.6f}")
 
 
 def main(args):
-    accelerator = Accelerator()
-    accelerate.DataLoaderConfiguration(split_batches=True)
+    rank = int(os.environ["LOCAL_RANK"])
+    world_size = int(os.environ["WORLD_SIZE"])
 
-    train_dataset = getattr(dataloader, args["Train dataset name"])(
-        **args["Train dataset parameters"]
+    dataloader_config = DataLoaderConfiguration(split_batches=True, dispatch_batches=True)
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+    accelerator = Accelerator(kwargs_handlers=[ddp_kwargs],
+                              dataloader_config=dataloader_config)
+
+    train_dataset = getattr(dataloader, args["Dataset name"])(rank=rank,
+        train=True, **args["Dataset parameters"]
     )
+    test_dataset = getattr(dataloader, args["Dataset name"])(
+        train=False, **args["Dataset parameters"]
+    )
+
+
+    # train_loader = SigLIPDataLoader(train_dataset,
+    #                                 rank=rank,
+    #                                 world_size=world_size,
+    #                                 **args["Train dataloader parameters"])
     train_loader = DataLoader(
         train_dataset,
-        batch_size=args["Dataloader parameters"]["batch_size"],
-        shuffle=True,
-        num_workers=100,
-        prefetch_factor=1,
-        pin_memory=True,
-        pin_memory_device="cuda"
-    )
-
-    test_dataset = getattr(dataloader, args["Test dataset name"])(
-        **args["Test dataset parameters"]
+        collate_fn=get_collate_fn(world_size, **args["Language parameters"]),
+        **args["Train dataloader parameters"],
     )
     test_loader = DataLoader(
         test_dataset,
-        batch_size=args["Dataloader parameters"]["batch_size"],
-        num_workers=10,
-        prefetch_factor=1,
-        pin_memory=True,
-        pin_memory_device="cuda"
+        collate_fn=get_collate_fn(world_size, **args["Language parameters"]),
+        **args["Test dataloader parameters"],
     )
 
     criterion = SigmoidLoss(**args["Loss parameters"])
 
     model = SigLIPModel(**args["Model parameters"])
-    optimizer = Adam(model.parameters(), **args["Optimizer parameters"])
-    scheduler = StepLR(optimizer, **args["Scheduler parameters"])
 
-    model, optimizer, train_loader, test_loader, scheduler = accelerator.prepare(
-        model, optimizer, train_loader, test_loader, scheduler)
+    if accelerator.distributed_type == DistributedType.DEEPSPEED:
+        optimizer = get_galore_optimizer(model, args)
+        scheduler = get_cosine_schedule_with_warmup(optimizer, **args["Scheduler parameters"])
+        model, train_loader, test_loader, optimizer, scheduler = accelerator.prepare(
+            model, train_loader, test_loader, optimizer, scheduler)
 
-    # wandb.login()
-    # wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
-    # wandb.watch(model, log="all", log_freq=10)
+    else:
+        model, train_loader, test_loader = accelerator.prepare(
+            model, train_loader, test_loader)
+        optimizer = get_galore_optimizer(model, args)
+        scheduler = get_cosine_schedule_with_warmup(optimizer, **args["Scheduler parameters"])
+        optimizer, scheduler = accelerator.prepare(optimizer,  scheduler)
 
-    for epoch in range(1, args["Train parameters"]["epochs"] + 1):
-        train_loss = run_epoch(
+    if accelerator.is_main_process:
+        pass
+        # wandb.login()
+        # wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
+        # wandb.watch(model, log="all", log_freq=10)
+
+    epochs, saving_mode, save_frequency, save_directory = args["Train parameters"].values()
+    for epoch in range(1, epochs + 1):
+        run_epoch(
             accelerator,
             model,
             criterion,
             train_loader,
+            epoch,
             optimizer,
+            scheduler,
             train_mode=True,
         )
-        test_loss = run_epoch(
+        run_epoch(
             accelerator,
             model,
             criterion,
             test_loader,
+            epoch,
             train_mode=False
         )
 
-        # wandb.log({
-        #     "Train loss": train_loss,
-        #     "Test loss": test_loss,
-        #     "Epoch": epoch
-        # })
+        if saving_mode and epoch % save_frequency == 0:
+            accelerator.wait_for_everyone()
+            accelerator.save_model(model, save_directory)
 
-        scheduler.step()
-
-    if args["Train parameters"]["save_model"]:
+    if saving_mode:
         accelerator.wait_for_everyone()
-        torch.save(model.state_dict(), args["Train parameters"]["save_directory"])
-
-    accelerator.wait_for_everyone()
-    accelerator.cleanup()
+        accelerator.save_model(model, save_directory)
 
 
 if __name__ == "__main__":
     torch.manual_seed(42)
 
-    with open("config.yml") as file:
+    with open("train_config.yml") as file:
         args = yaml.load(file, yaml.Loader)
 
     main(args)
