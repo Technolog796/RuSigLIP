@@ -1,9 +1,32 @@
-from torchvision.datasets import CIFAR10, CIFAR100, DTD, Food101, OxfordIIITPet, GTSRB, MNIST, SUN397, Country211, EuroSAT, FGVCAircraft, Flowers102
+from torchvision.datasets import (
+    CIFAR10,
+    CIFAR100,
+    DTD,
+    Food101,
+    OxfordIIITPet,
+    GTSRB,
+    MNIST,
+    SUN397,
+    Country211,
+    EuroSAT,
+    FGVCAircraft,
+    Flowers102,
+)
 import torchvision
 import json
 from typing import Tuple, List, Union
 
-all_datasets = ["cifar10", "cifar100", "dtd", "food101", "oxfordiiitpet", "mnist", "country211", "fgvcircraft", "flowers102"]
+all_datasets = [
+    "cifar10",
+    "cifar100",
+    "dtd",
+    "food101",
+    "oxfordiiitpet",
+    "mnist",
+    "country211",
+    "fgvcircraft",
+    "flowers102",
+]
 
 
 def get_dataset(
@@ -18,7 +41,7 @@ def get_dataset(
         torchvision.datasets.mnist.MNIST,
         torchvision.datasets.country211.Country211,
         torchvision.datasets.fgvc_aircraft.FGVCAircraft,
-        torchvision.datasets.flowers102.Flowers102
+        torchvision.datasets.flowers102.Flowers102,
     ],
     List[str],
 ]:
