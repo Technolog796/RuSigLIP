@@ -5,7 +5,7 @@ mixed_precision: "no" # no / fp8 / fp16 / bf16
 
 machine_rank: 0
 num_machines: 1
-num_processes: 2
+num_processes: 8
 gpu_ids: all
 
 deepspeed_config:

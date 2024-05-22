@@ -1,31 +1,32 @@
 Model parameters:
   image_encoder_params:
-    model_name: "resnet50"
+    model_name: "google/vit-base-patch16-224-in21k"
     pretrained: True
     freeze: False
   text_encoder_params:
-    model_name: "intfloat/multilingual-e5-base"
+    model_name: "/home/jovyan/clip-research/models/ru-e5-base"
     pretrained: True
     freeze: False
   connector_params:
     projection_size: 256
     dropout_rate: 0.1
-  image_embedding_size: 2048
+  image_embedding_size: 768
   text_embedding_size: 768
 
 Dataset name: "LaionCocoDataset"
 Dataset parameters:
-  dataset_directory: "/home/jovyan/rusiglip/laion-coco-nllb/"
-  tokenizer_name: "intfloat/multilingual-e5-base"
+  dataset_directory: "/home/jovyan/clip-research/laion-coco-nllb"
+  tokenizer_name: "/home/jovyan/clip-research/models/ru-e5-base"
   load_tokenized_files: True
-  save_tokenized_files: True
-  max_sequence_length: 16
+  save_tokenized_files: False
+  max_sequence_length: 32
   target_image_size: 224
   only_main_process: True
+  load_in_ram: True
 
 Train dataloader parameters:
-  batch_size: 800
-  num_workers: 200
+  batch_size: 3000
+  num_workers: 32
   shuffle: True
   drop_last: True
   prefetch_factor: 1
@@ -33,8 +34,8 @@ Train dataloader parameters:
   pin_memory_device: "cuda"
 
 Test dataloader parameters:
-  batch_size: 100
-  num_workers: 10
+  batch_size: 2000
+  num_workers: 32
   shuffle: False
   drop_last: True
   prefetch_factor: 1
