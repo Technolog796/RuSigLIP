@@ -22,3 +22,11 @@ def test_consistency(model_name):
         py_probs = logits_per_image.softmax(dim=-1).cpu().numpy()
 
     assert np.allclose(jit_probs, py_probs, atol=0.01, rtol=0.1)
+
+'''
+Планы на тесты:
+- Подгрузка данных и проверка формата помимо типизации
+- Прогон 1 семпла через модель
+- Прогон батча (с детерминированностью)
+- Проверка валидации
+'''
