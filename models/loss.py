@@ -12,7 +12,7 @@ class SigmoidLoss:
         self, img_emb: Tensor, txt_emb: Tensor, positive: bool = True
     ) -> Tensor:
         if img_emb.shape != txt_emb.shape:
-            raise TypeError("Input image and text embeddings must be the same size.")
+            raise TypeError(f"Input image and text embeddings must have the same shape. But {img_emb.shape} != {txt_emb.shape}.")
 
         n = len(img_emb)
         device = torch.get_device(img_emb)

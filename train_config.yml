@@ -1,0 +1,71 @@
+Model parameters:
+  image_encoder_params:
+    model_name: "google/vit-base-patch16-224-in21k"
+    pretrained: True
+    freeze: True 
+  text_encoder_params:
+    model_name: "/home/jovyan/clip-research/models/ru-e5-base"
+    pretrained: True
+    freeze: False
+  connector_params:
+    projection_size: 256
+    dropout_rate: 0.1
+  image_embedding_size: 768
+  text_embedding_size: 768
+
+Dataset name: "LaionCocoDataset"
+Dataset parameters:
+  dataset_directory: "/home/jovyan/clip-research/laion-coco-nllb"
+  tokenizer_name: "/home/jovyan/clip-research/models/ru-e5-base"
+  load_tokenized_files: True
+  save_tokenized_files: False
+  max_sequence_length: 32
+  target_image_size: 224
+  only_main_process: True
+  load_in_ram: True
+
+Train dataloader parameters:
+  batch_size: 24000
+  num_workers: 32
+  shuffle: True
+  drop_last: True
+  prefetch_factor: 1
+  pin_memory: True
+  pin_memory_device: "cuda"
+
+Test dataloader parameters:
+  batch_size: 1000
+  num_workers: 32
+  shuffle: True
+  drop_last: True
+  prefetch_factor: 1
+  pin_memory: True
+  pin_memory_device: "cuda"
+
+Language parameters:
+  language: "ru"
+  ru_probability: None
+
+Loss parameters:
+  temperature: 10.0
+  bias: -10.0
+
+GaLore parameters:
+  rank: 128
+  update_proj_gap: 200
+  scale: 0.25
+  proj_type: "std"
+
+Optimizer parameters:
+  lr: 0.0001
+  betas: [0.9, 0.95]
+
+Scheduler parameters:
+  num_warmup_steps: 1000
+  num_training_steps: 10000
+
+Train parameters:
+  epochs: 50
+  saving_mode: False
+  save_frequency: 1
+  save_directory: "trained_models/model02"
