@@ -80,7 +80,7 @@ def run_epoch(
 
     if accelerator.is_main_process:
         mode = "Train" if train_mode else "Test"
-        # wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
+        wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
         print(f"Epoch {epoch}\t{mode} loss: {ddp_loss:.6f}")
 
 
@@ -127,10 +127,10 @@ def main(args):
         optimizer, scheduler = accelerator.prepare(optimizer,  scheduler)
 
     if accelerator.is_main_process:
-        pass
-        # wandb.login()
-        # wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
-        # wandb.watch(model, log="all", log_freq=10)
+
+        wandb.login()
+        wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
+        wandb.watch(model, log="all", log_freq=10)
 
     epochs, saving_mode, save_frequency, save_directory = args["Train parameters"].values()
     for epoch in range(1, epochs + 1):

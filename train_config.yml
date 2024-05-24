@@ -2,7 +2,7 @@ Model parameters:
   image_encoder_params:
     model_name: "google/vit-base-patch16-224-in21k"
     pretrained: True
-    freeze: False
+    freeze: True 
   text_encoder_params:
     model_name: "/home/jovyan/clip-research/models/ru-e5-base"
     pretrained: True
@@ -25,7 +25,7 @@ Dataset parameters:
   load_in_ram: True
 
 Train dataloader parameters:
-  batch_size: 3000
+  batch_size: 24000
   num_workers: 32
   shuffle: True
   drop_last: True
@@ -34,9 +34,9 @@ Train dataloader parameters:
   pin_memory_device: "cuda"
 
 Test dataloader parameters:
-  batch_size: 2000
+  batch_size: 1000
   num_workers: 32
-  shuffle: False
+  shuffle: True
   drop_last: True
   prefetch_factor: 1
   pin_memory: True
