@@ -42,13 +42,16 @@ def get_dataset(
         torchvision.datasets.country211.Country211,
         torchvision.datasets.fgvc_aircraft.FGVCAircraft,
         torchvision.datasets.flowers102.Flowers102,
+        None,
     ],
-    List[str],
+    List[str] | None,
 ]:
+    if split not in ["train", "test"]:
+        split = "test"
     if dataset_name == "cifar10":
-        dataset = CIFAR10(root=".", download=True)
+        dataset = CIFAR10(root=".", train=(split == "train"), download=True)
     elif dataset_name == "cifar100":
-        dataset = CIFAR100(root=".", download=True)
+        dataset = CIFAR100(root=".", train=(split == "train"), download=True)
     elif dataset_name == "dtd":
         dataset = DTD(root=".", split=split, download=True)
     elif dataset_name == "food101":
@@ -56,7 +59,7 @@ def get_dataset(
     elif dataset_name == "oxfordiiitpet":
         dataset = OxfordIIITPet(root=".", split=split, download=True)
     elif dataset_name == "mnist":
-        dataset = MNIST(root=".", download=True)
+        dataset = MNIST(root=".", train=(split == "train"), download=True)
     elif dataset_name == "country211":
         dataset = Country211(root=".", split=split, download=True)
     elif dataset_name == "eurosat":
@@ -65,6 +68,8 @@ def get_dataset(
         dataset = FGVCAircraft(root=".", split=split, download=True)
     elif dataset_name == "flowers102":
         dataset = Flowers102(root=".", split=split, download=True)
+    else:
+        return None, None
 
     if language == "ru":
         with open("./labels-ru/" + dataset_name + "-labels-ru.json") as f:
