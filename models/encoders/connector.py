@@ -25,7 +25,7 @@ class Connector(nn.Module):
         return self.layer_norm(x)
 
 
-# a little sheet
+# Test
 class ConnectorBlock(nn.Module):
     def __init__(self, input_size: int, out_size: int, dropout_rate: float) -> None:
         super().__init__()

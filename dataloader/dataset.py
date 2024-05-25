@@ -9,11 +9,18 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 
+'''
+Simple template
+- Директория датасета
+- Токенайзер
+- Файл аннотации
+'''
+
 class RuSigLIPDataset(Dataset):
     def __init__(
         self,
         dataset_directory: str,
-        tokenizer_name: str = None,
+        tokenizer_name: str | None = None,
         load_tokenized_files: bool = True,
         save_tokenized_files: bool = True,
         max_sequence_length: int = 512,

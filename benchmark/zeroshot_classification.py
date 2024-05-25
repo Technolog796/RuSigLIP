@@ -1,6 +1,6 @@
 import os
 
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 import torch
 import numpy as np
 from datasets import get_dataset
@@ -8,6 +8,8 @@ from datasets import all_datasets
 from transformers import AutoProcessor, AutoModel
 from typing import Dict, List, Tuple, Union
 import torchvision
+
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 
 def accuracy(true: List[int], probs: List[torch.Tensor], k: int = 1) -> float:

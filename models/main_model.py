@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 from .encoders import ImageEncoder
 from .encoders import TextEncoder
@@ -35,5 +36,6 @@ class SigLIPModel(nn.Module):
         return image_embeddings, text_embeddings
 
     def predict(self, images, texts):
-        image_embeddings, text_embeddings = self.forward(images, texts)
-        return image_embeddings, text_embeddings
+        with torch.no_grad():
+            image_embeddings, text_embeddings = self.forward(images, texts)
+            return image_embeddings, text_embeddings
