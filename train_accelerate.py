@@ -55,22 +55,20 @@ def run_epoch(
     train_mode=True,
 ):
     model.train() if train_mode else model.eval()
-    ddp_loss = 0
+    ddp_loss = torch.tensor([0.0], device=accelerator.process_index)
 
     if accelerator.is_main_process:
         inner_pbar = tqdm(range(len(data_loader)), desc="Epoch")
 
-    import time
     for images, all_texts in data_loader:
         batch_size = len(images) * len(all_texts)
-        
-        begin = time.time()
 
         if train_mode:
             optimizer.zero_grad()
 
         img_emb, txt_emb = model(images, all_texts[0])
         loss = criterion(img_emb, txt_emb, positive=True) / batch_size
+        ddp_loss += loss.item()
 
         if train_mode:
             accelerator.backward(loss)
@@ -89,14 +87,14 @@ def run_epoch(
         if accelerator.is_main_process:
             inner_pbar.update()
 
-            print("Train" if train_mode else "Test", "time:", time.time() - begin)
         ddp_loss += loss.item()
 
     ddp_loss /= len(data_loader)
+    ddp_loss = accelerator.gather(ddp_loss).sum().item()
 
     if accelerator.is_main_process:
         mode = "Train" if train_mode else "Test"
-        wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
+        wandb.log({f"{mode} loss": ddp_loss, "Epoch": epoch})
         print(f"Epoch {epoch}\t{mode} loss: {ddp_loss:.6f}")
 
 

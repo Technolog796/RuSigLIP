@@ -25,20 +25,20 @@ Dataset parameters:
   load_in_ram: True
 
 Train dataloader parameters:
-  batch_size: 24000
-  num_workers: 32
+  batch_size: 16000
+  num_workers: 2
   shuffle: True
   drop_last: True
-  prefetch_factor: 1
+  prefetch_factor: 2
   pin_memory: True
   pin_memory_device: "cuda"
 
 Test dataloader parameters:
   batch_size: 1000
-  num_workers: 32
+  num_workers: 2
   shuffle: True
   drop_last: True
-  prefetch_factor: 1
+  prefetch_factor: 2
   pin_memory: True
   pin_memory_device: "cuda"
 
@@ -61,11 +61,11 @@ Optimizer parameters:
   betas: [0.9, 0.95]
 
 Scheduler parameters:
-  num_warmup_steps: 1000
+  num_warmup_steps: 100
   num_training_steps: 10000
 
 Train parameters:
-  epochs: 50
-  saving_mode: False
+  epochs: 100
+  saving_mode: True
   save_frequency: 1
   save_directory: "trained_models/model02"

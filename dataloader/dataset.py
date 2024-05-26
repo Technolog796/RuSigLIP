@@ -116,7 +116,7 @@ class RuSigLIPDataset(Dataset):
         with open(filename, "r") as file:
             data = json.load(file)
 
-        for idx, i in enumerate(data):
+        for i in data:
             images_ids.append(i["image_id"])
             labels_en.append(i["caption_eng"])
             labels_ru.append(i["caption_rus"])
