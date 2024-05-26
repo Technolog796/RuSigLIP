@@ -12,7 +12,6 @@ from transformers import get_cosine_schedule_with_warmup
 from accelerate import Accelerator, DistributedType, DistributedDataParallelKwargs, DataLoaderConfiguration
 
 import dataloader
-from dataloader.dataloader import SigLIPDataLoader
 from dataloader.collate_function import get_collate_fn
 from models import SigmoidLoss, SigLIPModel
 
@@ -28,14 +27,31 @@ def get_galore_optimizer(model, args):
     return GaLoreAdamW(param_groups, no_deprecation_warning=True, **args["Optimizer parameters"])
 
 
+
+def eval_epoch(accelerator, model, eval_dataset):
+    model.eval()
+
+    with torch.no_grad():
+        ...
+
+
+def train_epoch(accelerator, model, train_dataset):
+    model.train()
+    ...
+
+
+
+
+
+
 def run_epoch(
     accelerator,
     model,
     criterion,
     data_loader,
     epoch,
-    optimizer=None,
-    scheduler=None,
+    optimizer=None, # Тут не очень коректно так делать - ruff не в восторге
+    scheduler=None, # Как и тут
     train_mode=True,
 ):
     model.train() if train_mode else model.eval()

@@ -1,0 +1,8 @@
+torch
+numpy
+transformers
+torchvision
+pillow
+
+sentencepiece
+protobuf

@@ -3,9 +3,7 @@ from transformers import ViTImageProcessor, ViTModel
 
 
 class ImageEncoder(nn.Module):
-    def __init__(
-        self, model_name: str, pretrained: bool = False, freeze: bool = True
-    ):
+    def __init__(self, model_name: str, pretrained: bool = False, freeze: bool = True):
         super().__init__()
 
         self.model = ViTModel.from_pretrained(model_name)
