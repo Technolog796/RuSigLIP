@@ -3,8 +3,8 @@ import os
 
 import torch
 import numpy as np
-from datasets import get_dataset
-from datasets import all_datasets
+from datasets_get import get_dataset
+from datasets_get import all_datasets
 from transformers import AutoProcessor, AutoModel
 from typing import Dict, List, Tuple, Union
 import torchvision

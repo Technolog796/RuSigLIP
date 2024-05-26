@@ -1,6 +1,6 @@
 import argparse
 from zeroshot_classification import evaluate
-from datasets import all_datasets
+from datasets_get import all_datasets
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate model")
