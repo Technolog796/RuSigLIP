@@ -16,6 +16,10 @@ from models.main_model import SigLIPModel
 
 from torch.nn.functional import normalize
 
+from dataloader import RuSigLIPDataset
+
+import os
+
 
 class RuSigLIPDatasetEvaluate(Dataset):
     def __init__(
@@ -95,10 +99,11 @@ class RuSigLIPDatasetEvaluate(Dataset):
 
     def get_image(self, idx: int) -> Tensor:
         if self.dataset_name == "cifar10":  # https://huggingface.co/datasets/cifar10
+            dataset = CIFAR100(root=".", train=False, download=True)
             image = np.asarray(dataset[idx][0])
         elif self.dataset_name == "cifar100":
             dataset = CIFAR100(
-                root=".", download=True
+                root=".", train=False, download=True
             )  # https://huggingface.co/datasets/cifar100
             image = np.asarray(dataset[idx][0])
         else:
@@ -138,7 +143,7 @@ class RuSigLIPDatasetEvaluate(Dataset):
             return None, None, None, None, None
 
         classes_en = dataset.classes
-        with open("../benchmark/labels-ru/" + dataset_name + "-labels-ru.json") as f:
+        with open("benchmark/labels-ru/" + dataset_name + "-labels-ru.json") as f:
             classes_ru = json.load(f)
 
         labels_en = []
@@ -201,7 +206,60 @@ def validate_cifar(
 
             logits = z_img @ z_txt.T * 10 - 10
             probs = torch.sigmoid(logits)
-            predict =  [labels[i] for _, i in probs.topk(k=1, dim=-1)]
+            predict = [labels[i] for _, i in probs.topk(k=1, dim=-1)]
+            for i in range(len(labels)):
+                true += predict[i] == labels[i]
+    return true / len(test_data)
+
+
+def validate(
+    model_name: str,
+    language: str = "en",
+    batch_size: int = 32,
+    dataset_directory: str = "cifar100/test/",
+) -> float | None:
+    if not os.path.exists(dataset_directory):
+        print(f"Dataset directory {dataset_directory} is not exists")
+        return None
+    if language not in ["en", "ru"]:
+        language = "en"
+    test_data = RuSigLIPDataset(dataset_directory=dataset_directory)
+    loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+    torch.manual_seed(1)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model = SigLIPModel()  # Create default initialization
+    if not os.path.isfile(model_name):
+        print(f"Model {model_name} is not exists")
+        return None
+    model.load_state_dict(torch.load(model_name))
+    model = model.to(device).eval()
+
+    true = 0
+    with torch.no_grad():
+        for data in loader:
+            image = data["image"]
+            if language == "en":
+                texts = {
+                    "input_ids": data["input_ids_en"],
+                    "attention_mask": data["attention_mask_en"],
+                }
+                labels = data["label_en"]
+            elif language == "ru":
+                texts = {
+                    "input_ids": data["input_ids_ru"],
+                    "attention_mask": data["attention_mask_ru"],
+                }
+                labels = data["label_ru"]
+            else:
+                return None
+            image_embeddings, text_embeddings = model.predict(image, texts)
+            z_img = normalize(image_embeddings)
+            z_txt = normalize(text_embeddings)
+
+            logits = z_img @ z_txt.T * 10 - 10
+            probs = torch.sigmoid(logits)
+            predict = [labels[i] for _, i in probs.topk(k=1, dim=-1)]
             for i in range(len(labels)):
                 true += predict[i] == labels[i]
     return true / len(test_data)
