@@ -13,20 +13,31 @@ Model parameters:
   image_embedding_size: 768
   text_embedding_size: 768
 
-Dataset name: "LaionCocoDataset"
-Dataset parameters:
-  dataset_directory: "/home/jovyan/clip-research/laion-coco-nllb"
+Train dataset name: "LaionCocoDataset"
+Train dataset parameters:
+  dataset_directory: "/home/jovyan/clip-research/laion-coco-nllb/train"
   tokenizer_name: "/home/jovyan/clip-research/models/ru-e5-base"
-  load_tokenized_files: True
-  save_tokenized_files: False
   max_sequence_length: 32
   target_image_size: 224
-  only_main_process: True
-  load_in_ram: True
+  load_tokenized_files: True
+  save_tokenized_files: False
+  preload_images: True
+  compress_images: True
+
+Test dataset name: "CIFAR100"
+Test dataset parameters:
+  dataset_directory: "/home/jovyan/clip-research/cifar100/train"
+  tokenizer_name: "/home/jovyan/clip-research/models/ru-e5-base"
+  max_sequence_length: 32
+  target_image_size: 224
+  load_tokenized_files: False
+  save_tokenized_files: True
+  preload_images: True
+  compress_images: False
 
 Train dataloader parameters:
-  batch_size: 16000
-  num_workers: 2
+  batch_size: 5000
+  num_workers: 32
   shuffle: True
   drop_last: True
   prefetch_factor: 2
@@ -34,8 +45,8 @@ Train dataloader parameters:
   pin_memory_device: "cuda"
 
 Test dataloader parameters:
-  batch_size: 1000
-  num_workers: 2
+  batch_size: 5000
+  num_workers: 32
   shuffle: True
   drop_last: True
   prefetch_factor: 2
@@ -43,22 +54,17 @@ Test dataloader parameters:
   pin_memory_device: "cuda"
 
 Language parameters:
-  language: "ru"
-  ru_probability: None
+  language: Null
+  ru_probability: 0.5
 
 Loss parameters:
   temperature: 10.0
   bias: -10.0
 
-GaLore parameters:
-  rank: 128
-  update_proj_gap: 200
-  scale: 0.25
-  proj_type: "std"
-
 Optimizer parameters:
-  lr: 0.0001
+  lr: 0.0002
   betas: [0.9, 0.95]
+  weight_decay: 0.00003 
 
 Scheduler parameters:
   num_warmup_steps: 100
@@ -66,6 +72,8 @@ Scheduler parameters:
 
 Train parameters:
   epochs: 100
-  saving_mode: True
+  load_model: True
+  load_file: "/home/jovyan/clip-research/malikov/RuSigLIP/trained_models/model02/model.safetensors"
+  save_model: True
   save_frequency: 1
-  save_directory: "trained_models/model02"
+  save_directory: "/home/jovyan/clip-research/malikov/RuSigLIP/trained_models/model03"

@@ -1,5 +1,7 @@
 import torch
 from torch import nn
+from torch.nn.functional import normalize
+
 from .encoders import ImageEncoder
 from .encoders import TextEncoder
 from .encoders import Connector
@@ -27,15 +29,12 @@ class SigLIPModel(nn.Module):
         )
 
     def forward(self, images, texts):
-        image_embeddings = self.image_connector(self.image_encoder(images))
-        text_embeddings = self.text_connector(
-            self.text_encoder(
-                input_ids=texts["input_ids"], attention_mask=texts["attention_mask"]
-            )
-        )
+        image_embeddings = normalize(self.image_connector(self.image_encoder(images)))
+        text_embeddings = normalize(self.text_connector(
+            self.text_encoder(input_ids=texts["input_ids"], attention_mask=texts["attention_mask"])))
         return image_embeddings, text_embeddings
 
+    @torch.no_grad
     def predict(self, images, texts):
-        with torch.no_grad():
-            image_embeddings, text_embeddings = self.forward(images, texts)
-            return image_embeddings, text_embeddings
+        image_embeddings, text_embeddings = self.forward(images, texts)
+        return image_embeddings, text_embeddings
