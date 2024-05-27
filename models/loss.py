@@ -17,10 +17,7 @@ class SigmoidLoss:
         n = len(img_emb)
         device = torch.get_device(img_emb)
 
-        z_img = normalize(img_emb)
-        z_txt = normalize(txt_emb)
-
-        logits = z_img @ z_txt.T * self.temperature + self.bias
+        logits = img_emb @ txt_emb.T * self.temperature + self.bias
 
         labels = -torch.ones((n, n), device=device)
         if positive:

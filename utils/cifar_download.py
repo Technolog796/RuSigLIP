@@ -28,7 +28,7 @@ def main():
             {
                 "image_id": str(i),
                 "caption_eng": classes_en[num],
-                "caption_ru": classes_ru[num],
+                "caption_rus": classes_ru[num],
             }
         )
     with open("cifar100/train/data.json", "w") as f:
@@ -41,7 +41,7 @@ def main():
             {
                 "image_id": str(i),
                 "caption_eng": classes_en[num],
-                "caption_ru": classes_ru[num],
+                "caption_rus": classes_ru[num],
             }
         )
     with open("cifar100/test/data.json", "w") as f:
@@ -62,7 +62,7 @@ def main():
             {
                 "image_id": str(i),
                 "caption_eng": classes_en[num],
-                "caption_ru": classes_ru[num],
+                "caption_rus": classes_ru[num],
             }
         )
     with open("cifar10/train/data.json", "w") as f:
@@ -75,7 +75,7 @@ def main():
             {
                 "image_id": str(i),
                 "caption_eng": classes_en[num],
-                "caption_ru": classes_ru[num],
+                "caption_rus": classes_ru[num],
             }
         )
     with open("cifar10/test/data.json", "w") as f:
