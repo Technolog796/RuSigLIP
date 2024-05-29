@@ -1,23 +1,21 @@
 import os
 import sys
-from torchvision import datasets
 import json
 
+from torchvision import datasets
 
-def main(dataset_name, dataset_dir):
-    if not os.path.exists(dataset_dir + "/train/images"):
-        os.makedirs(dataset_dir + "/train/images")
+
+def main(dataset_name: str, dataset_dir: str) -> None:
+    if not os.path.exists(dataset_dir + "/images"):
+        os.makedirs(dataset_dir + "/images")
 
     dataset = getattr(datasets, dataset_name)(root=".", download=True)
     classes_en = dataset.classes
     classes_en = [i.replace("_", " ") for i in classes_en]
-    #with open("labels-ru/" + "cifar100" + "-labels-ru.json") as f:
-    #    classes_ru = json.load(f)
-    #    classes_ru = [i.replace("_", " ") for i in classes_ru]
 
     data = []
     for i, (img, num) in enumerate(dataset):
-        img.save(dataset_dir + "/train/images/" + str(i) + ".jpg")
+        img.save(dataset_dir + "/images/" + str(i) + ".jpg")
         data.append(
             {
                 "image_id": str(i),
@@ -25,7 +23,7 @@ def main(dataset_name, dataset_dir):
                 "caption_rus": "",
             }
         )
-    with open(dataset_dir + "/train/data.json", "w") as f:
+    with open(dataset_dir + "/data.json", "w") as f:
         json.dump(data, f, indent=4)
 
 

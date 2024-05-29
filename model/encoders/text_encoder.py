@@ -1,6 +1,5 @@
 from transformers import AutoModel
 from torch import nn, Tensor
-import torch.nn.functional as F
 
 
 def average_pool(last_hidden_states: Tensor, attention_mask: Tensor) -> Tensor:
@@ -9,19 +8,21 @@ def average_pool(last_hidden_states: Tensor, attention_mask: Tensor) -> Tensor:
 
 
 class TextEncoder(nn.Module):
-    def __init__(self, model_name: str, pretrained: bool = False, freeze: bool = True):
+    def __init__(self, model_name: str = "pretrained_models/ru-e5-base",
+                 pretrained: bool = True,
+                 freeze: bool = False):
         super().__init__()
 
         if pretrained:
             self.model = AutoModel.from_pretrained(model_name)
         else:
+            # TODO
             self.model = AutoModel.from_config(model_name)
 
         for name, param in self.model.named_parameters():
             param.requires_grad = not freeze
 
-    def forward(self, input_ids, attention_mask):
+    def forward(self, input_ids: Tensor, attention_mask: Tensor) -> Tensor:
         outputs = self.model(input_ids, attention_mask)
         embeddings = average_pool(outputs.last_hidden_state, attention_mask)
-        embeddings = F.normalize(embeddings, p=2, dim=1)  # Нормализация
         return embeddings

@@ -1,39 +1,31 @@
 Model parameters:
   image_encoder_params:
     model_name: "google/vit-base-patch16-224-in21k"
-    pretrained: True
     freeze: True 
   text_encoder_params:
     model_name: "/home/jovyan/clip-research/models/ru-e5-base"
     pretrained: True
     freeze: False
   connector_params:
-    projection_size: 256
+    output_sizes: [512, 256]
     dropout_rate: 0.1
   image_embedding_size: 768
   text_embedding_size: 768
 
-Train dataset name: "LaionCocoDataset"
-Train dataset parameters:
-  dataset_directory: "/home/jovyan/clip-research/laion-coco-nllb/train"
-  tokenizer_name: "/home/jovyan/clip-research/models/ru-e5-base"
-  max_sequence_length: 32
-  target_image_size: 224
-  load_tokenized_files: True
-  save_tokenized_files: False
-  preload_images: True
-  compress_images: True
-
-Test dataset name: "CIFAR100"
-Test dataset parameters:
-  dataset_directory: "/home/jovyan/clip-research/cifar100/train"
+Train dataset names: ["LaionCocoDataset", "LaionCocoDataset"]
+Train dataset directories: ["/home/jovyan/clip-research/laion-coco-nllb/train",
+                            "/home/jovyan/clip-research/laion-coco-nllb/test"]
+Test dataset names: ["CIFAR100"]
+Test dataset directories: ["/home/jovyan/clip-research/cifar100/train"]
+Dataset parameters:
   tokenizer_name: "/home/jovyan/clip-research/models/ru-e5-base"
   max_sequence_length: 32
   target_image_size: 224
   load_tokenized_files: False
   save_tokenized_files: True
   preload_images: True
-  compress_images: False
+  compress_images: True
+
 
 Train dataloader parameters:
   batch_size: 5000

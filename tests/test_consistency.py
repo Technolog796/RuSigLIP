@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 import torch
 from PIL import Image
-from models.main_model import SigLIPModel
+
+from model import SigLIPModel
 
 
 @pytest.mark.parametrize('model_name', SigLIPModel)

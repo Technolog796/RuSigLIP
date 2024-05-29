@@ -1,149 +1,192 @@
-import os
 import yaml
-from functools import partial
+from typing import Any
 
 import wandb
-from tqdm import tqdm
-
 import torch
-from torch.optim import Adam
-from torch.optim.lr_scheduler import StepLR
-import torch.distributed as dist
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP, BackwardPrefetch
-from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
+from tqdm import tqdm
+from safetensors import safe_open
+from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import LambdaLR
+from composer.optim import DecoupledAdamW
+from transformers import get_cosine_schedule_with_warmup
+from accelerate import Accelerator, DataLoaderConfiguration
 
-import dataloader
-from dataloader import SigLIPDataLoader
-from models import SigmoidLoss, SigLIPModel
-from models.encoders import ImageEncoder, TextEncoder, Connector
+import dataset
+from dataset import DummyDataset
+from model import SigLIPModel
+from utils.loss import SigmoidLoss
+from utils.train_utils import get_train_collate_fn, get_test_collate_fn, update_topk_accuracy, load_datasets
 
 
-def run_epoch(
-    model,
-    criterion,
-    data_loader,
-    rank,
-    world_size,
-    epoch,
-    optimizer=None,
-    train_mode=True,
-):
-    model.train() if train_mode else model.eval()
-    ddp_loss = torch.tensor(0.0).to(rank)
-    data_loader.set_epoch(epoch)
+@torch.no_grad()
+def eval_epoch(accelerator: Accelerator,
+               model: SigLIPModel,
+               criterion: SigmoidLoss,
+               loaders: list[DataLoader],
+               topk: tuple[int] = (1, 5)) -> dict[str, float]:
+    model.eval()
 
-    if rank == 0:
-        inner_pbar = tqdm(range(len(data_loader)), desc="Training epoch")
+    rank = accelerator.process_index
+    accuracy_en = {f"Accuracy@{k}": torch.tensor([0.0], device=rank) for k in topk}
+    accuracy_ru = {f"Accuracy@{k}": torch.tensor([0.0], device=rank) for k in topk}
+    loss_en = torch.tensor([0.0], device=rank)
+    loss_ru = torch.tensor([0.0], device=rank)
+    steps_number = sum(len(loader) for loader in loaders)
 
-    with torch.set_grad_enabled(train_mode):
-        for images, texts in data_loader:
-            if train_mode:
-                optimizer.zero_grad()
+    if accelerator.is_main_process:
+        inner_pbar = tqdm(range(steps_number), desc="Test epoch")
 
-            img_emb, txt_emb = model(images, texts[0])
-            loss = criterion(img_emb, txt_emb, positive=True)
+    for loader in loaders:
+        for batch in loader:
+            images, labels_en, labels_ru, texts_en, texts_ru = batch
+            batch_size = len(images) * accelerator.num_processes
 
-            for i in range(1, world_size):
-                img_emb, txt_emb = model(images, texts[i])
-                loss += criterion(img_emb, txt_emb, positive=False)
+            img_emb, txt_emb_en = model.predict(images, texts_en)
+            img_emb, txt_emb_ru = model.predict(images, texts_ru)
 
-            loss /= len(img_emb) * world_size
+            loss_en += criterion(img_emb, txt_emb_en) / batch_size
+            loss_ru += criterion(img_emb, txt_emb_ru) / batch_size
 
-            if train_mode:
-                loss.backward()
-                optimizer.step()
+            update_topk_accuracy(labels_en, img_emb, txt_emb_en, accuracy_en, topk, batch_size)
+            update_topk_accuracy(labels_ru, img_emb, txt_emb_ru, accuracy_ru, topk, batch_size)
 
-            ddp_loss += loss.item()
-
-            if rank == 0:
+            if accelerator.is_main_process:
                 inner_pbar.update()
 
-    ddp_loss /= len(data_loader)
-    dist.all_reduce(ddp_loss, op=dist.ReduceOp.SUM)
-    if rank == 0:
-        inner_pbar.close()
-        mode = "Train" if train_mode else "Test"
-        wandb.log({f"{mode} loss": ddp_loss.item(), "Epoch": epoch})
-        print(f"Epoch {epoch}\t{mode} loss: {ddp_loss.item():.6f}")
+    test_log = {"Test loss (en)": loss_en / steps_number, "Test loss (ru)": loss_ru / steps_number}
+    test_log.update({key + "(en)": value / steps_number for key, value in accuracy_en.items()})
+    test_log.update({key + "(ru)": value / steps_number for key, value in accuracy_ru.items()})
+    for key in test_log:
+        test_log[key] = accelerator.gather(test_log[key]).sum().item()
+    return test_log
 
 
-def fsdp_main(rank, world_size, args):
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "12345"
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+def train_epoch(accelerator: Accelerator,
+                model: SigLIPModel,
+                criterion: SigmoidLoss,
+                loaders: list[DataLoader],
+                optimizer: DecoupledAdamW,
+                scheduler: LambdaLR) -> dict[str, float]:
+    model.train()
+    ddp_loss = torch.tensor([0.0], device=accelerator.process_index)
+    steps_number = sum(len(loader) for loader in loaders)
 
-    train_dataset = getattr(dataloader, args["Train dataset name"])(
-        **args["Train dataset parameters"]
-    )
-    train_loader = SigLIPDataLoader(
-        train_dataset, rank=rank, world_size=world_size, **args["Dataloader parameters"]
-    )
+    if accelerator.is_main_process:
+        inner_pbar = tqdm(range(steps_number), desc="Train epoch")
 
-    test_dataset = getattr(dataloader, args["Test dataset name"])(
-        **args["Test dataset parameters"]
-    )
-    test_loader = SigLIPDataLoader(
-        test_dataset, rank=rank, world_size=world_size, **args["Dataloader parameters"]
-    )
+    for loader in loaders:
+        for images, all_texts in loader:
+            batch_size = len(images) * accelerator.num_processes
+            optimizer.zero_grad()
 
-    torch.cuda.set_device(rank)
+            img_emb, txt_emb = model(images, all_texts[0])
+            loss = criterion(img_emb, txt_emb, positive=True) / batch_size
+            ddp_loss += loss.item()
+            accelerator.backward(loss)
 
-    model = SigLIPModel(**args["Model parameters"]).to(rank)
+            for texts in all_texts[1:]:
+                img_emb, txt_emb = model(images, texts)
+                loss = criterion(img_emb, txt_emb, positive=False) / batch_size
+                ddp_loss += loss.item()
+                accelerator.backward(loss)
 
-    siglip_auto_wrap_policy = partial(
-        transformer_auto_wrap_policy,
-        transformer_layer_cls={ImageEncoder, TextEncoder, Connector},
-    )
+            optimizer.step()
+            scheduler.step()
 
-    model = FSDP(
-        model,
-        use_orig_params=True,
-        backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
-        auto_wrap_policy=siglip_auto_wrap_policy,
-    )
+            if accelerator.is_main_process:
+                inner_pbar.update()
 
-    if rank == 0:
+    ddp_loss /= steps_number
+    ddp_loss = accelerator.gather(ddp_loss).sum().item()
+
+    return {"Train loss": ddp_loss}
+
+
+def main(params: dict[str, Any]) -> None:
+    accelerator = Accelerator(dataloader_config=DataLoaderConfiguration(split_batches=True, dispatch_batches=True))
+
+    model = SigLIPModel(**params["Model parameters"])
+    if params["Train parameters"]["load_model"]:
+        weights = {}
+        with safe_open(params["Train parameters"]["load_file"],
+                       framework="pt",
+                       device="cpu") as f:
+            for k in f.keys():
+                weights[k] = f.get_tensor(k)
+        model.load_state_dict(weights)
+
+    criterion = SigmoidLoss(**params["Loss parameters"])
+    optimizer = DecoupledAdamW(model.parameters(), **params["Optimizer parameters"])
+    scheduler = get_cosine_schedule_with_warmup(optimizer, **params["Scheduler parameters"])
+
+    if accelerator.is_main_process:
+        train_datasets = load_datasets(params["Train dataset names"],
+                                       params["Train dataset directories"],
+                                       params["Dataset parameters"])
+        test_datasets = load_datasets(params["Test dataset names"],
+                                      params["Test dataset directories"],
+                                      params["Dataset parameters"])
+    else:
+        train_datasets = [DummyDataset(**params["Train dataset parameters"])]
+        test_datasets = [DummyDataset(**params["Test dataset parameters"])]
+
+    train_loaders = [DataLoader(train_dataset,
+                                collate_fn=get_train_collate_fn(accelerator.num_processes,
+                                                                **params["Language parameters"]),
+                                **params["Train dataloader parameters"]) for train_dataset in train_datasets]
+    test_loaders = [DataLoader(test_dataset,
+                               collate_fn=get_test_collate_fn(),
+                               **params["Test dataloader parameters"]) for test_dataset in test_datasets]
+
+    model, optimizer, scheduler, *train_loaders = accelerator.prepare(
+        model, optimizer, scheduler, *train_loaders)
+    test_loaders = accelerator.prepare(*test_loaders)
+
+    if accelerator.is_main_process:
         wandb.login()
-        wandb.init(project="RuSigLIP", config=args, sync_tensorboard=True)
+        wandb.init(project="RuSigLIP", config=params, sync_tensorboard=True)
         wandb.watch(model, log="all", log_freq=10)
 
-    criterion = SigmoidLoss(**args["Loss parameters"])
-    optimizer = Adam(model.parameters(), **args["Optimizer parameters"])
-    scheduler = StepLR(optimizer, **args["Scheduler parameters"])
+    save_model = params["Train parameters"]["save_model"]
+    if save_model:
+        save_frequency = params["Train parameters"]["save_frequency"]
+        save_directory = params["Train parameters"]["save_directory"]
 
-    for epoch in range(1, args["Train parameters"]["epochs"] + 1):
-        run_epoch(
+    for epoch in range(1, params["Train parameters"]["epochs"] + 1):
+        train_log = train_epoch(
+            accelerator,
             model,
             criterion,
-            train_loader,
-            rank,
-            world_size,
-            epoch,
+            train_loaders,
             optimizer,
-            train_mode=True,
+            scheduler,
         )
-        run_epoch(
-            model, criterion, test_loader, rank, world_size, epoch, train_mode=False
+        test_log = eval_epoch(
+            accelerator,
+            model,
+            criterion,
+            test_loaders
         )
-        scheduler.step()
 
-    if args["Train parameters"]["save_model"]:
-        dist.barrier()
-        states = model.state_dict()
-        if rank == 0:
-            torch.save(states, args["Train parameters"]["save_directory"])
+        if accelerator.is_main_process:
+            log = {**test_log, **train_log, "Epoch": epoch}
+            wandb.log(log)
+            for key, value in log.items():
+                print(f"{key}: {value:.6f}")
 
-    dist.destroy_process_group()
+        if save_model and epoch % save_frequency == 0:
+            accelerator.wait_for_everyone()
+            accelerator.save_model(model, save_directory)
+
+    if save_model:
+        accelerator.wait_for_everyone()
+        accelerator.save_model(model, save_directory)
 
 
 if __name__ == "__main__":
     torch.manual_seed(42)
 
-    WORLD_SIZE = torch.cuda.device_count()
-
-    with open("config.yml") as file:
+    with open("train_config.yml") as file:
         args = yaml.load(file, yaml.Loader)
 
-    torch.multiprocessing.spawn(
-        fsdp_main, args=(WORLD_SIZE, args), nprocs=WORLD_SIZE, join=True
-    )
+    main(args)

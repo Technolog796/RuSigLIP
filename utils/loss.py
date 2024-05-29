@@ -1,18 +1,17 @@
 import torch
 from torch import Tensor
-from torch.nn.functional import normalize, logsigmoid
+from torch.nn.functional import logsigmoid
 
 
 class SigmoidLoss:
-    def __init__(self, temperature: float = 10, bias: float = -10):
+    def __init__(self, temperature: float = 10, bias: float = -10) -> None:
         self.temperature = temperature
         self.bias = bias
 
-    def __call__(
-        self, img_emb: Tensor, txt_emb: Tensor, positive: bool = True
-    ) -> Tensor:
+    def __call__(self, img_emb: Tensor, txt_emb: Tensor, positive: bool = True) -> Tensor:
         if img_emb.shape != txt_emb.shape:
-            raise TypeError(f"Input image and text embeddings must have the same shape. But {img_emb.shape} != {txt_emb.shape}.")
+            raise TypeError(f"Input image and text embeddings must have the same shape. "
+                            f"But {img_emb.shape} != {txt_emb.shape}.")
 
         n = len(img_emb)
         device = torch.get_device(img_emb)

@@ -1,0 +1,28 @@
+{
+    "en": {
+        "start": "Hello, {}! I'm a bot using the RuSigLIP model!\nTo understand how to use the bot, use the /help command.\nTo change the bot's language, use the /lang command.",
+        "help": [
+            "You can use the following commands:",
+            "/help - get help on using the bot",
+            "/lang - change the bot's language",
+            "To classify an image, send a message with an attached image and class names, separated by a newline"
+        ],
+        "choose_language": "Please choose a language:",
+        "language_set": "Language set to English.",
+        "no_image_error": "You must attach an image you want to classify.",
+        "no_text_error": "You must add class names to classify the image."
+    },
+    "ru": {
+        "start": "Привет, {}! Я бот, использующий модель RuSigLIP!\nЧтобы понять, как работать с ботом, используй команду /help.\nЧтобы поменять язык бота, используй команду /lang.",
+        "help": [
+            "Вы можете использовать следующие команды:",
+            "/help - получить подсказки по использованию бота",
+            "/lang - поменять языка бота",
+            "Чтобы выполнить классификацию картинки, отправьте сообщение с прикрепленной картинкой и названиями классов, разделенными переводом строки"
+        ],
+        "choose_language": "Пожалуйста, выберите язык:",
+        "language_set": "Язык установлен на русский.",
+        "no_image_error": "Вы должны прикрепить изображение, которое хотите классифицировать.",
+        "no_text_error": "Вы должны добавить названия классов для классификации изображения"
+    }
+}

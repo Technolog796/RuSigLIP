@@ -4,31 +4,27 @@ from concurrent.futures import ThreadPoolExecutor
 
 import cv2
 import numpy as np
-from transformers import AutoTokenizer
-
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
+from transformers import AutoTokenizer
 
 
 class RuSigLIPDataset(Dataset):
-    def __init__(
-        self,
-        dataset_directory: str,
-        tokenizer_name: str,
-        target_image_size: int = 224,
-        max_sequence_length: int = 32,
-        is_classification: bool = False,
-        load_tokenized_files: bool = False,
-        save_tokenized_files: bool = False,
-        preload_images: bool = False,
-        compress_images: bool = False
-    ):
+    def __init__(self,
+                 dataset_directory: str,
+                 tokenizer_name: str,
+                 target_image_size: int = 224,
+                 max_sequence_length: int = 32,
+                 load_tokenized_files: bool = False,
+                 save_tokenized_files: bool = False,
+                 preload_images: bool = False,
+                 compress_images: bool = False) -> None:
         super().__init__()
 
         self.image_size = target_image_size
         self.transforms = lambda image: image
-        self.compess_images = compress_images
+        self.compress_images = compress_images
 
         self.dataset_directory = dataset_directory
 
@@ -88,31 +84,27 @@ class RuSigLIPDataset(Dataset):
             "attention_mask_en": self.tokenized_labels_en["attention_mask"][idx],
             "attention_mask_ru": self.tokenized_labels_ru["attention_mask"][idx],
         }
-    
-    def load_image(self, image_id: int) -> np.ndarray:
+
+    def load_image(self, image_id: str) -> np.ndarray:
         image_path = os.path.join(self.dataset_directory, "images", image_id + ".jpg")
         image = cv2.imread(image_path)
         if image is None:
             image = np.zeros([self.image_size, self.image_size, 3], dtype=np.uint8)
         return image
 
-    def preload_image(self, image_id: str) -> bytes:
+    def preload_image(self, image_id: str) -> bytes | np.ndarray:
         image = self.load_image(image_id)
         image = cv2.resize(image, [self.image_size, self.image_size])
-        if self.compess_images:
+        if self.compress_images:
             _, buffer = cv2.imencode('.jpg', image)
             return buffer.tobytes()
         else:
             return image
 
-    def decompress_image(self, buffer: bytes) -> np.ndarray:
-        image = cv2.imdecode(np.frombuffer(buffer, np.uint8), cv2.IMREAD_COLOR)
-        return image
-
     def get_image(self, idx: int) -> Tensor:
         if self.images:
             image = self.images[idx]
-            if self.compess_images:
+            if self.compress_images:
                 image = self.decompress_image(image)
         else:
             image = self.load_image(self.image_ids[idx])
@@ -132,6 +124,11 @@ class RuSigLIPDataset(Dataset):
             }
 
     @staticmethod
+    def decompress_image(buffer: bytes) -> np.ndarray:
+        image = cv2.imdecode(np.frombuffer(buffer, np.uint8), cv2.IMREAD_COLOR)
+        return image
+
+    @staticmethod
     def _get_images_and_labels(filename: str) -> tuple[list[str], list[str], list[str]]:
         image_ids = []
         labels_en = []
@@ -148,9 +145,17 @@ class RuSigLIPDataset(Dataset):
         return image_ids, labels_en, labels_ru
 
 
-class DummyDataset(RuSigLIPDataset):
-    def __init__(self, dataset_directory: str, *args, **kwargs):
-        self.image_ids, _, _ = self._get_images_and_labels(os.path.join(dataset_directory, "data.json"))
+class DummyDataset(Dataset):
+    def __init__(self, dataset_directory: str, *args, **kwargs) -> None:
+        self.size, _, _ = self._get_size(os.path.join(dataset_directory, "data.json"))
+
+    def __len__(self) -> int:
+        return self.size
 
     def __getitem__(self, idx: int) -> dict:
         return {}
+
+    @staticmethod
+    def _get_size(filename: str) -> int:
+        with open(filename, "r") as file:
+            return len(json.load(file))
