@@ -4,14 +4,27 @@ channels:
   - conda-forge
   - pytorch
   - nvidia
+  - huggingface
+  - menpo
+  - mosaicml
 dependencies:
-  - accelerate=0.30.0
+  - accelerate
+  - albumentations
   - deepspeed
-  - pillow=10.2.0
-  - python=3.11.8
+  - mosaicml
+  - numpy
+  - opencv
+  - pillow
+  - pip
+  - python=3.11
   - pytorch=2.2.1
   - pytorch-cuda=12.1
-  - timm=0.9.16
-  - tqdm=4.66.2
-  - transformers=4.39.1
-  - wandb=0.16.5
+  - safetensors
+  - tqdm
+  - transformers
+  - wandb
+  - pip:
+      - aiogram
+      - aiosqlite
+      - pytest
+
