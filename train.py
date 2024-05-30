@@ -11,7 +11,6 @@ from composer.optim import DecoupledAdamW
 from transformers import get_cosine_schedule_with_warmup
 from accelerate import Accelerator, DataLoaderConfiguration
 
-import dataset
 from dataset import DummyDataset
 from model import SigLIPModel
 from utils.loss import SigmoidLoss
@@ -54,17 +53,20 @@ def eval_epoch(accelerator: Accelerator,
     test_log = {"Test loss (en)": loss_en / len(loader), "Test loss (ru)": loss_ru / len(loader)}
     test_log.update({key + "(en)": value / len(loader) for key, value in accuracy_en.items()})
     test_log.update({key + "(ru)": value / len(loader) for key, value in accuracy_ru.items()})
+
     for key in test_log:
         test_log[key] = accelerator.gather(test_log[key]).sum().item()
     return test_log
 
 
-def train_epoch(accelerator: Accelerator,
-                model: SigLIPModel,
-                criterion: SigmoidLoss,
-                loaders: list[DataLoader],
-                optimizer: DecoupledAdamW,
-                scheduler: LambdaLR) -> dict[str, float]:
+def train_epoch(
+    accelerator: Accelerator,
+    model: SigLIPModel,
+    criterion: SigmoidLoss,
+    loaders: list[DataLoader],
+    optimizer: DecoupledAdamW,
+    scheduler: LambdaLR,
+) -> dict[str, float]:
     model.train()
     ddp_loss = torch.tensor([0.0], device=accelerator.process_index)
     steps_number = sum(len(loader) for loader in loaders)
@@ -101,21 +103,27 @@ def train_epoch(accelerator: Accelerator,
 
 
 def main(params: dict[str, Any]) -> None:
-    accelerator = Accelerator(dataloader_config=DataLoaderConfiguration(split_batches=True, dispatch_batches=True))
+    accelerator = Accelerator(
+        dataloader_config=DataLoaderConfiguration(
+            split_batches=True, dispatch_batches=True
+        )
+    )
 
     model = SigLIPModel(**params["Model parameters"])
     if params["Train parameters"]["load_model"]:
         weights = {}
-        with safe_open(params["Train parameters"]["load_file"],
-                       framework="pt",
-                       device="cpu") as f:
+        with safe_open(
+            params["Train parameters"]["load_file"], framework="pt", device="cpu"
+        ) as f:
             for k in f.keys():
                 weights[k] = f.get_tensor(k)
         model.load_state_dict(weights)
 
     criterion = SigmoidLoss(**params["Loss parameters"])
     optimizer = DecoupledAdamW(model.parameters(), **params["Optimizer parameters"])
-    scheduler = get_cosine_schedule_with_warmup(optimizer, **params["Scheduler parameters"])
+    scheduler = get_cosine_schedule_with_warmup(
+        optimizer, **params["Scheduler parameters"]
+    )
 
     if accelerator.is_main_process:
         train_datasets = []
@@ -124,6 +132,7 @@ def main(params: dict[str, Any]) -> None:
 
         test_dataset = getattr(dataset,
                                params["Test dataset name"])(params["Test dataset directory"], **params["Dataset parameters"])
+
     else:
         train_datasets = [DummyDataset(directory) for directory in params["Train dataset directories"]]
         test_dataset = DummyDataset(params["Test dataset directory"])

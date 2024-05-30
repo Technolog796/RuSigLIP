@@ -32,7 +32,7 @@ class LaionCocoDataset(RuSigLIPDataset):
                     std=[0.26862954, 0.26130258, 0.27577711],
                     max_pixel_value=255.0,
                     always_apply=True,
-                )
+                ),
             ]
         )
 
@@ -48,7 +48,7 @@ class CIFAR10(LaionCocoDataset):
                     std=[0.24703223, 0.24348513, 0.26158784],
                     max_pixel_value=255.0,
                     always_apply=True,
-                )
+                ),
             ]
         )
 
@@ -64,7 +64,7 @@ class CIFAR100(LaionCocoDataset):
                     std=[0.26733429, 0.25643846, 0.27615047],
                     max_pixel_value=255.0,
                     always_apply=True,
-                )
+                ),
             ]
         )
 

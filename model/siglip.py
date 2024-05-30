@@ -35,13 +35,22 @@ class SigLIPModel(nn.Module):
             input_size=text_embedding_size, **connector_params
         )
 
-    def forward(self, images: Tensor, texts: dict[str, Tensor]) -> tuple[Tensor, Tensor]:
+    def forward(
+        self, images: Tensor, texts: dict[str, Tensor]
+    ) -> tuple[Tensor, Tensor]:
         image_embeddings = normalize(self.image_connector(self.image_encoder(images)))
-        text_embeddings = normalize(self.text_connector(
-            self.text_encoder(input_ids=texts["input_ids"], attention_mask=texts["attention_mask"])))
+        text_embeddings = normalize(
+            self.text_connector(
+                self.text_encoder(
+                    input_ids=texts["input_ids"], attention_mask=texts["attention_mask"]
+                )
+            )
+        )
         return image_embeddings, text_embeddings
 
     @torch.no_grad()
-    def predict(self, images: Tensor, texts: dict[str, Tensor]) -> tuple[Tensor, Tensor]:
+    def predict(
+        self, images: Tensor, texts: dict[str, Tensor]
+    ) -> tuple[Tensor, Tensor]:
         image_embeddings, text_embeddings = self.forward(images, texts)
         return image_embeddings, text_embeddings

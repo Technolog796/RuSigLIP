@@ -6,7 +6,7 @@ from PIL import Image
 from model import SigLIPModel
 
 
-@pytest.mark.parametrize('model_name', SigLIPModel)
+@pytest.mark.parametrize("model_name", SigLIPModel)
 def test_consistency(model_name):
     device = "cpu"
     jit_model, transform = SigLIPModel.load(model_name, device=device, jit=True)
@@ -24,10 +24,11 @@ def test_consistency(model_name):
 
     assert np.allclose(jit_probs, py_probs, atol=0.01, rtol=0.1)
 
-'''
+
+"""
 Планы на тесты:
 - Подгрузка данных и проверка формата помимо типизации
 - Прогон 1 семпла через модель
 - Прогон батча (с детерминированностью)
 - Проверка валидации
-'''
+"""

@@ -5,15 +5,22 @@ import numpy as np
 from aiogram import Router
 from aiogram.filters.command import Command
 from aiogram.utils.formatting import as_marked_section
-from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from aiogram.types import (
+    Message,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    CallbackQuery,
+)
 
 from database import get_language, set_language
 from utils.inference_utils import load_model_and_tokenizer, preprocess, get_probs
 
 
-model, tokenizer = load_model_and_tokenizer(model_weights="../trained_models/model06/model.safetensors")
+model, tokenizer = load_model_and_tokenizer(
+    model_weights="../trained_models/model06/model.safetensors"
+)
 
-with open('messages.json', 'r', encoding='utf-8') as file:
+with open("messages.json", "r", encoding="utf-8") as file:
     messages = json.load(file)
 
 router = Router()
@@ -60,24 +67,28 @@ async def settings_handler(message: Message) -> None:
     user_id = message.from_user.id
     msgs = await get_user_messages(user_id)
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="English", callback_data='lang_en'),
-        InlineKeyboardButton(text="Русский", callback_data='lang_ru')
-    ]])
-    await message.answer(msgs['choose_language'], reply_markup=keyboard)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="English", callback_data="lang_en"),
+                InlineKeyboardButton(text="Русский", callback_data="lang_ru"),
+            ]
+        ]
+    )
+    await message.answer(msgs["choose_language"], reply_markup=keyboard)
 
 
-@router.callback_query(lambda c: c.data.startswith('lang_'))
+@router.callback_query(lambda c: c.data.startswith("lang_"))
 async def language_callback_handler(callback_query: CallbackQuery) -> None:
     user_id = callback_query.from_user.id
     data = callback_query.data
 
-    if data == 'lang_en':
+    if data == "lang_en":
         await set_language(user_id, "en")
-        await callback_query.message.edit_text(messages['en']['language_set'])
-    elif data == 'lang_ru':
+        await callback_query.message.edit_text(messages["en"]["language_set"])
+    elif data == "lang_ru":
         await set_language(user_id, "ru")
-        await callback_query.message.edit_text(messages['ru']['language_set'])
+        await callback_query.message.edit_text(messages["ru"]["language_set"])
 
     await callback_query.answer()
 
@@ -103,7 +114,7 @@ async def process_media_and_text(message: Message) -> None:
     texts = []
     text = message.caption
     if text:
-        texts = list(filter(lambda x: x != "",  map(str.strip, text.split("\n"))))
+        texts = list(filter(lambda x: x != "", map(str.strip, text.split("\n"))))
 
     if len(texts) == 0:
         await message.answer(msgs["no_text_error"])
@@ -113,6 +124,6 @@ async def process_media_and_text(message: Message) -> None:
 
     msg = ""
     for i, (prob, text) in enumerate(zip(probs, texts)):
-        msg += f"{i + 1}. \"{text}\": {prob}\n"
+        msg += f'{i + 1}. "{text}": {prob}\n'
 
     await message.answer(msg)

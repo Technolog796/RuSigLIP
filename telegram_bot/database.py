@@ -20,7 +20,7 @@ async def get_language(user_id: int) -> Row | None:
         WHERE user_id = ?;
     """
     async with connect("database.db") as database:
-        async with database.execute(sql_select_language, (user_id, )) as cursor:
+        async with database.execute(sql_select_language, (user_id,)) as cursor:
             return await cursor.fetchone()
 
 

@@ -3,14 +3,13 @@ import sys
 import time
 import pickle
 from io import BytesIO
-from typing import Any, Callable
+from typing import Callable
 
 import cv2
 import numpy as np
 import albumentations as A
 from PIL import Image
-from numpy import ndarray, dtype, unsignedinteger
-from numpy._typing import _8Bit
+from numpy import ndarray
 
 transforms = A.Compose(
     [
@@ -27,7 +26,7 @@ transforms = A.Compose(
 
 def get_size_mb(data: object) -> float:
     memory_size = len(pickle.dumps(data))
-    return memory_size / 2 ** 20
+    return memory_size / 2**20
 
 
 def cv2_preload(image_path: str) -> np.ndarray:
@@ -43,7 +42,7 @@ def cv2_access(image: np.ndarray) -> None:
 def cv2_preload_compressed(image_path: str) -> ndarray:
     image = cv2.imread(image_path)
     image = cv2.resize(image, (224, 224))
-    _, buffer = cv2.imencode('.jpg', image)
+    _, buffer = cv2.imencode(".jpg", image)
     return buffer
 
 
@@ -54,8 +53,8 @@ def cv2_access_compressed(buffer: ndarray) -> None:
 
 def pil_preload(image_path: str) -> Image:
     image = Image.open(image_path)
-    if image.mode != 'RGB':
-        image = image.convert('RGB')
+    if image.mode != "RGB":
+        image = image.convert("RGB")
     image = image.resize((224, 224))
     return image
 
@@ -67,11 +66,11 @@ def pil_access(image: Image) -> None:
 
 def pil_preload_compressed(image_path: str) -> bytes:
     image = Image.open(image_path)
-    if image.mode != 'RGB':
-        image = image.convert('RGB')
+    if image.mode != "RGB":
+        image = image.convert("RGB")
     image = image.resize((224, 224))
     buffer = BytesIO()
-    image.save(buffer, format='JPEG')
+    image.save(buffer, format="JPEG")
     return buffer.getvalue()
 
 
@@ -81,15 +80,17 @@ def pil_access_compressed(buffer: bytes) -> None:
     image = transforms(image=image)["image"]
 
 
-def test_lib(fn_preload: Callable[[str], bytes | ndarray | Image],
-             fn_access: Callable[[bytes | ndarray], None],
-             lib_name: str,
-             image_directory: str,
-             max_image_number: int) -> None:
+def test_lib(
+    fn_preload: Callable[[str], bytes | ndarray | Image],
+    fn_access: Callable[[bytes | ndarray], None],
+    lib_name: str,
+    image_directory: str,
+    max_image_number: int,
+) -> None:
     images = []
     start_time = time.time()
     for filename in os.listdir(image_directory)[:max_image_number]:
-        if filename.endswith('.jpeg') or filename.endswith('.jpg'):
+        if filename.endswith(".jpeg") or filename.endswith(".jpg"):
             image_path = os.path.join(image_directory, filename)
             image = fn_preload(image_path)
             images.append(image)
@@ -105,15 +106,17 @@ def test_lib(fn_preload: Callable[[str], bytes | ndarray | Image],
 
 
 def main(image_directory: str, max_image_number: int = 1000) -> None:
-    lib_args = [(cv2_preload, cv2_access, "OpenCV (noncompressed)"),
-                (cv2_preload_compressed, cv2_access_compressed, "OpenCV (compressed)"),
-                (pil_preload, pil_access, "Pillow (noncompressed)"),
-                (pil_preload_compressed, pil_access_compressed, "Pillow (compressed)")]
+    lib_args = [
+        (cv2_preload, cv2_access, "OpenCV (noncompressed)"),
+        (cv2_preload_compressed, cv2_access_compressed, "OpenCV (compressed)"),
+        (pil_preload, pil_access, "Pillow (noncompressed)"),
+        (pil_preload_compressed, pil_access_compressed, "Pillow (compressed)"),
+    ]
     for args in lib_args:
         test_lib(*args, image_directory, max_image_number)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if not 2 <= len(sys.argv) <= 3:
         print(f"Usage: {sys.argv[0]} <image_directory> [<max_image_number>]")
         sys.exit(1)
