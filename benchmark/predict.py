@@ -1,7 +1,5 @@
 import os
 
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-
 import PIL
 from PIL import Image
 import torch
@@ -10,6 +8,8 @@ import argparse
 from transformers import AutoProcessor, AutoModel
 
 from typing import List, Union
+
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 
 def predict(
@@ -39,8 +39,8 @@ def predict(
     except TypeError:
         print("Formats in Image.open() is not None, a list or a tuple")
         return None
-    except:
-        print("Unexpected error")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
         return None
     if model == "google/siglip-base-patch16-224":
         processor = AutoProcessor.from_pretrained("google/siglip-base-patch16-224")

@@ -11,19 +11,25 @@ from composer.optim import DecoupledAdamW
 from transformers import get_cosine_schedule_with_warmup
 from accelerate import Accelerator, DataLoaderConfiguration
 
-import dataset
 from dataset import DummyDataset
 from model import SigLIPModel
 from utils.loss import SigmoidLoss
-from utils.train_utils import get_train_collate_fn, get_test_collate_fn, update_topk_accuracy, load_datasets
+from utils.train_utils import (
+    get_train_collate_fn,
+    get_test_collate_fn,
+    update_topk_accuracy,
+    load_datasets,
+)
 
 
 @torch.no_grad()
-def eval_epoch(accelerator: Accelerator,
-               model: SigLIPModel,
-               criterion: SigmoidLoss,
-               loaders: list[DataLoader],
-               topk: tuple[int] = (1, 5)) -> dict[str, float]:
+def eval_epoch(
+    accelerator: Accelerator,
+    model: SigLIPModel,
+    criterion: SigmoidLoss,
+    loaders: list[DataLoader],
+    topk: tuple[int] = (1, 5),
+) -> dict[str, float]:
     model.eval()
 
     rank = accelerator.process_index
@@ -47,26 +53,39 @@ def eval_epoch(accelerator: Accelerator,
             loss_en += criterion(img_emb, txt_emb_en) / batch_size
             loss_ru += criterion(img_emb, txt_emb_ru) / batch_size
 
-            update_topk_accuracy(labels_en, img_emb, txt_emb_en, accuracy_en, topk, batch_size)
-            update_topk_accuracy(labels_ru, img_emb, txt_emb_ru, accuracy_ru, topk, batch_size)
+            update_topk_accuracy(
+                labels_en, img_emb, txt_emb_en, accuracy_en, topk, batch_size
+            )
+            update_topk_accuracy(
+                labels_ru, img_emb, txt_emb_ru, accuracy_ru, topk, batch_size
+            )
 
             if accelerator.is_main_process:
                 inner_pbar.update()
 
-    test_log = {"Test loss (en)": loss_en / steps_number, "Test loss (ru)": loss_ru / steps_number}
-    test_log.update({key + "(en)": value / steps_number for key, value in accuracy_en.items()})
-    test_log.update({key + "(ru)": value / steps_number for key, value in accuracy_ru.items()})
+    test_log = {
+        "Test loss (en)": loss_en / steps_number,
+        "Test loss (ru)": loss_ru / steps_number,
+    }
+    test_log.update(
+        {key + "(en)": value / steps_number for key, value in accuracy_en.items()}
+    )
+    test_log.update(
+        {key + "(ru)": value / steps_number for key, value in accuracy_ru.items()}
+    )
     for key in test_log:
         test_log[key] = accelerator.gather(test_log[key]).sum().item()
     return test_log
 
 
-def train_epoch(accelerator: Accelerator,
-                model: SigLIPModel,
-                criterion: SigmoidLoss,
-                loaders: list[DataLoader],
-                optimizer: DecoupledAdamW,
-                scheduler: LambdaLR) -> dict[str, float]:
+def train_epoch(
+    accelerator: Accelerator,
+    model: SigLIPModel,
+    criterion: SigmoidLoss,
+    loaders: list[DataLoader],
+    optimizer: DecoupledAdamW,
+    scheduler: LambdaLR,
+) -> dict[str, float]:
     model.train()
     ddp_loss = torch.tensor([0.0], device=accelerator.process_index)
     steps_number = sum(len(loader) for loader in loaders)
@@ -103,43 +122,65 @@ def train_epoch(accelerator: Accelerator,
 
 
 def main(params: dict[str, Any]) -> None:
-    accelerator = Accelerator(dataloader_config=DataLoaderConfiguration(split_batches=True, dispatch_batches=True))
+    accelerator = Accelerator(
+        dataloader_config=DataLoaderConfiguration(
+            split_batches=True, dispatch_batches=True
+        )
+    )
 
     model = SigLIPModel(**params["Model parameters"])
     if params["Train parameters"]["load_model"]:
         weights = {}
-        with safe_open(params["Train parameters"]["load_file"],
-                       framework="pt",
-                       device="cpu") as f:
+        with safe_open(
+            params["Train parameters"]["load_file"], framework="pt", device="cpu"
+        ) as f:
             for k in f.keys():
                 weights[k] = f.get_tensor(k)
         model.load_state_dict(weights)
 
     criterion = SigmoidLoss(**params["Loss parameters"])
     optimizer = DecoupledAdamW(model.parameters(), **params["Optimizer parameters"])
-    scheduler = get_cosine_schedule_with_warmup(optimizer, **params["Scheduler parameters"])
+    scheduler = get_cosine_schedule_with_warmup(
+        optimizer, **params["Scheduler parameters"]
+    )
 
     if accelerator.is_main_process:
-        train_datasets = load_datasets(params["Train dataset names"],
-                                       params["Train dataset directories"],
-                                       params["Dataset parameters"])
-        test_datasets = load_datasets(params["Test dataset names"],
-                                      params["Test dataset directories"],
-                                      params["Dataset parameters"])
+        train_datasets = load_datasets(
+            params["Train dataset names"],
+            params["Train dataset directories"],
+            params["Dataset parameters"],
+        )
+        test_datasets = load_datasets(
+            params["Test dataset names"],
+            params["Test dataset directories"],
+            params["Dataset parameters"],
+        )
     else:
         train_datasets = [DummyDataset(**params["Train dataset parameters"])]
         test_datasets = [DummyDataset(**params["Test dataset parameters"])]
 
-    train_loaders = [DataLoader(train_dataset,
-                                collate_fn=get_train_collate_fn(accelerator.num_processes,
-                                                                **params["Language parameters"]),
-                                **params["Train dataloader parameters"]) for train_dataset in train_datasets]
-    test_loaders = [DataLoader(test_dataset,
-                               collate_fn=get_test_collate_fn(),
-                               **params["Test dataloader parameters"]) for test_dataset in test_datasets]
+    train_loaders = [
+        DataLoader(
+            train_dataset,
+            collate_fn=get_train_collate_fn(
+                accelerator.num_processes, **params["Language parameters"]
+            ),
+            **params["Train dataloader parameters"],
+        )
+        for train_dataset in train_datasets
+    ]
+    test_loaders = [
+        DataLoader(
+            test_dataset,
+            collate_fn=get_test_collate_fn(),
+            **params["Test dataloader parameters"],
+        )
+        for test_dataset in test_datasets
+    ]
 
     model, optimizer, scheduler, *train_loaders = accelerator.prepare(
-        model, optimizer, scheduler, *train_loaders)
+        model, optimizer, scheduler, *train_loaders
+    )
     test_loaders = accelerator.prepare(*test_loaders)
 
     if accelerator.is_main_process:
@@ -161,12 +202,7 @@ def main(params: dict[str, Any]) -> None:
             optimizer,
             scheduler,
         )
-        test_log = eval_epoch(
-            accelerator,
-            model,
-            criterion,
-            test_loaders
-        )
+        test_log = eval_epoch(accelerator, model, criterion, test_loaders)
 
         if accelerator.is_main_process:
             log = {**test_log, **train_log, "Epoch": epoch}

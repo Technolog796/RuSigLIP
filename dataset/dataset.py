@@ -11,15 +11,17 @@ from transformers import AutoTokenizer
 
 
 class RuSigLIPDataset(Dataset):
-    def __init__(self,
-                 dataset_directory: str,
-                 tokenizer_name: str,
-                 target_image_size: int = 224,
-                 max_sequence_length: int = 32,
-                 load_tokenized_files: bool = False,
-                 save_tokenized_files: bool = False,
-                 preload_images: bool = False,
-                 compress_images: bool = False) -> None:
+    def __init__(
+        self,
+        dataset_directory: str,
+        tokenizer_name: str,
+        target_image_size: int = 224,
+        max_sequence_length: int = 32,
+        load_tokenized_files: bool = False,
+        save_tokenized_files: bool = False,
+        preload_images: bool = False,
+        compress_images: bool = False,
+    ) -> None:
         super().__init__()
 
         self.image_size = target_image_size
@@ -50,11 +52,13 @@ class RuSigLIPDataset(Dataset):
         else:
             tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
-            tokenizer_params = {"max_length": max_sequence_length,
-                                "return_tensors": "pt",
-                                "return_token_type_ids": False,
-                                "padding": True,
-                                "truncation": True}
+            tokenizer_params = {
+                "max_length": max_sequence_length,
+                "return_tensors": "pt",
+                "return_token_type_ids": False,
+                "padding": True,
+                "truncation": True,
+            }
 
             self.tokenized_labels_en = tokenizer(self.labels_en, **tokenizer_params)
             self.tokenized_labels_ru = tokenizer(self.labels_ru, **tokenizer_params)
@@ -96,7 +100,7 @@ class RuSigLIPDataset(Dataset):
         image = self.load_image(image_id)
         image = cv2.resize(image, [self.image_size, self.image_size])
         if self.compress_images:
-            _, buffer = cv2.imencode('.jpg', image)
+            _, buffer = cv2.imencode(".jpg", image)
             return buffer.tobytes()
         else:
             return image

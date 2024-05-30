@@ -17,7 +17,12 @@ class ConnectorBlock(nn.Module):
 
 
 class ModularConnector(nn.Module):
-    def __init__(self, input_size: int, output_sizes: list[int] = (256, ), dropout_rate: float = 0.5) -> None:
+    def __init__(
+        self,
+        input_size: int,
+        output_sizes: list[int] = (256,),
+        dropout_rate: float = 0.5,
+    ) -> None:
         super().__init__()
 
         connector_shapes = [input_size] + output_sizes
@@ -35,9 +40,7 @@ class ModularConnector(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        for block, layer_norm in zip(
-            self.connector_blocks, self.layer_norm_blocks
-        ):
+        for block, layer_norm in zip(self.connector_blocks, self.layer_norm_blocks):
             projection = block(x)
             x += projection
             x = layer_norm(x)

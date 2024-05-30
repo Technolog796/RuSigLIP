@@ -8,9 +8,12 @@ def average_pool(last_hidden_states: Tensor, attention_mask: Tensor) -> Tensor:
 
 
 class TextEncoder(nn.Module):
-    def __init__(self, model_name: str = "pretrained_models/ru-e5-base",
-                 pretrained: bool = True,
-                 freeze: bool = False):
+    def __init__(
+        self,
+        model_name: str = "pretrained_models/ru-e5-base",
+        pretrained: bool = True,
+        freeze: bool = False,
+    ):
         super().__init__()
 
         if pretrained:

@@ -1,4 +1,3 @@
-import pytest
 import os
 import torch
 
@@ -32,7 +31,7 @@ def test_predict_result():
     labels = ["cat", "dog"]
     if os.path.exists(image_path):
         pred = predict(path=image_path, labels=labels)
-        assert type(pred) is int
+        assert isinstance(pred, int)
         assert pred in list(range(len(labels)))
 
 
