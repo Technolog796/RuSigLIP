@@ -14,22 +14,15 @@ from accelerate import Accelerator, DataLoaderConfiguration
 from dataset import DummyDataset
 from model import SigLIPModel
 from utils.loss import SigmoidLoss
-from utils.train_utils import (
-    get_train_collate_fn,
-    get_test_collate_fn,
-    update_topk_accuracy,
-    load_datasets,
-)
+from utils.train_utils import get_train_collate_fn, get_test_collate_fn, update_topk_accuracy
 
 
 @torch.no_grad()
-def eval_epoch(
-    accelerator: Accelerator,
-    model: SigLIPModel,
-    criterion: SigmoidLoss,
-    loaders: list[DataLoader],
-    topk: tuple[int] = (1, 5),
-) -> dict[str, float]:
+def eval_epoch(accelerator: Accelerator,
+               model: SigLIPModel,
+               criterion: SigmoidLoss,
+               loader: DataLoader,
+               topk: tuple[int] = (1, 5)) -> dict[str, float]:
     model.eval()
 
     rank = accelerator.process_index
@@ -37,42 +30,30 @@ def eval_epoch(
     accuracy_ru = {f"Accuracy@{k}": torch.tensor([0.0], device=rank) for k in topk}
     loss_en = torch.tensor([0.0], device=rank)
     loss_ru = torch.tensor([0.0], device=rank)
-    steps_number = sum(len(loader) for loader in loaders)
 
     if accelerator.is_main_process:
-        inner_pbar = tqdm(range(steps_number), desc="Test epoch")
+        inner_pbar = tqdm(range(len(loader)), desc="Test epoch")
 
-    for loader in loaders:
-        for batch in loader:
-            images, labels_en, labels_ru, texts_en, texts_ru = batch
-            batch_size = len(images) * accelerator.num_processes
+    for batch in loader:
+        images, labels_en, labels_ru, texts_en, texts_ru = batch
+        batch_size = len(images) * accelerator.num_processes
 
-            img_emb, txt_emb_en = model.predict(images, texts_en)
-            img_emb, txt_emb_ru = model.predict(images, texts_ru)
+        img_emb, txt_emb_en = model.predict(images, texts_en)
+        img_emb, txt_emb_ru = model.predict(images, texts_ru)
 
-            loss_en += criterion(img_emb, txt_emb_en) / batch_size
-            loss_ru += criterion(img_emb, txt_emb_ru) / batch_size
+        loss_en += criterion(img_emb, txt_emb_en) / batch_size
+        loss_ru += criterion(img_emb, txt_emb_ru) / batch_size
 
-            update_topk_accuracy(
-                labels_en, img_emb, txt_emb_en, accuracy_en, topk, batch_size
-            )
-            update_topk_accuracy(
-                labels_ru, img_emb, txt_emb_ru, accuracy_ru, topk, batch_size
-            )
+        update_topk_accuracy(labels_en, img_emb, txt_emb_en, accuracy_en, topk, batch_size)
+        update_topk_accuracy(labels_ru, img_emb, txt_emb_ru, accuracy_ru, topk, batch_size)
 
-            if accelerator.is_main_process:
-                inner_pbar.update()
+        if accelerator.is_main_process:
+            inner_pbar.update()
 
-    test_log = {
-        "Test loss (en)": loss_en / steps_number,
-        "Test loss (ru)": loss_ru / steps_number,
-    }
-    test_log.update(
-        {key + "(en)": value / steps_number for key, value in accuracy_en.items()}
-    )
-    test_log.update(
-        {key + "(ru)": value / steps_number for key, value in accuracy_ru.items()}
-    )
+    test_log = {"Test loss (en)": loss_en / len(loader), "Test loss (ru)": loss_ru / len(loader)}
+    test_log.update({key + "(en)": value / len(loader) for key, value in accuracy_en.items()})
+    test_log.update({key + "(ru)": value / len(loader) for key, value in accuracy_ru.items()})
+
     for key in test_log:
         test_log[key] = accelerator.gather(test_log[key]).sum().item()
     return test_log
@@ -145,43 +126,31 @@ def main(params: dict[str, Any]) -> None:
     )
 
     if accelerator.is_main_process:
-        train_datasets = load_datasets(
-            params["Train dataset names"],
-            params["Train dataset directories"],
-            params["Dataset parameters"],
-        )
-        test_datasets = load_datasets(
-            params["Test dataset names"],
-            params["Test dataset directories"],
-            params["Dataset parameters"],
-        )
+        train_datasets = []
+        for dataset_name, dataset_directory in zip(params["Train dataset names"], params["Train dataset directories"]):
+            train_datasets.append(getattr(dataset, dataset_name)(dataset_directory, **params["Dataset parameters"]))
+
+        test_dataset = getattr(dataset,
+                               params["Test dataset name"])(params["Test dataset directory"], **params["Dataset parameters"])
+
     else:
-        train_datasets = [DummyDataset(**params["Train dataset parameters"])]
-        test_datasets = [DummyDataset(**params["Test dataset parameters"])]
+        train_datasets = [DummyDataset(directory) for directory in params["Train dataset directories"]]
+        test_dataset = DummyDataset(params["Test dataset directory"])
 
-    train_loaders = [
-        DataLoader(
-            train_dataset,
-            collate_fn=get_train_collate_fn(
-                accelerator.num_processes, **params["Language parameters"]
-            ),
-            **params["Train dataloader parameters"],
-        )
-        for train_dataset in train_datasets
-    ]
-    test_loaders = [
-        DataLoader(
-            test_dataset,
-            collate_fn=get_test_collate_fn(),
-            **params["Test dataloader parameters"],
-        )
-        for test_dataset in test_datasets
-    ]
+    train_loaders = [DataLoader(train_dataset,
+                                collate_fn=get_train_collate_fn(accelerator.num_processes,
+                                                                **params["Language parameters"]),
+                                **params["Train dataloader parameters"]) for train_dataset in train_datasets]
+    test_loader = DataLoader(test_dataset,
+                             collate_fn=get_test_collate_fn(),
+                             **params["Test dataloader parameters"])
 
-    model, optimizer, scheduler, *train_loaders = accelerator.prepare(
-        model, optimizer, scheduler, *train_loaders
-    )
-    test_loaders = accelerator.prepare(*test_loaders)
+    model, optimizer, scheduler, test_loader = accelerator.prepare(
+        model, optimizer, scheduler, test_loader)
+    if len(train_loaders) > 1:
+        train_loaders = accelerator.prepare(*train_loaders)
+    else:
+        train_loaders = [accelerator.prepare(train_loaders[0])]
 
     if accelerator.is_main_process:
         wandb.login()
@@ -202,10 +171,15 @@ def main(params: dict[str, Any]) -> None:
             optimizer,
             scheduler,
         )
-        test_log = eval_epoch(accelerator, model, criterion, test_loaders)
+        test_log = eval_epoch(
+            accelerator,
+            model,
+            criterion,
+            test_loader
+        )
 
         if accelerator.is_main_process:
-            log = {**test_log, **train_log, "Epoch": epoch}
+            log = {"Epoch": epoch, **train_log, **test_log}
             wandb.log(log)
             for key, value in log.items():
                 print(f"{key}: {value:.6f}")
@@ -226,3 +200,4 @@ if __name__ == "__main__":
         args = yaml.load(file, yaml.Loader)
 
     main(args)
+

@@ -1,22 +1,23 @@
 Model parameters:
   image_encoder_params:
     model_name: "google/vit-base-patch16-224-in21k"
-    freeze: True 
+    freeze: False 
   text_encoder_params:
     model_name: "/home/jovyan/clip-research/models/ru-e5-base"
     pretrained: True
     freeze: False
   connector_params:
     output_sizes: [512, 256]
-    dropout_rate: 0.1
+    dropout_rate: 0.5
   image_embedding_size: 768
   text_embedding_size: 768
 
-Train dataset names: ["LaionCocoDataset", "LaionCocoDataset"]
-Train dataset directories: ["/home/jovyan/clip-research/laion-coco-nllb/train",
-                            "/home/jovyan/clip-research/laion-coco-nllb/test"]
-Test dataset names: ["CIFAR100"]
-Test dataset directories: ["/home/jovyan/clip-research/cifar100/train"]
+Train dataset names: ["LaionCocoDataset"]
+Train dataset directories: ["/home/jovyan/clip-research/datasets/laion-coco-nllb/train"]
+
+Test dataset name: "CIFAR100"
+Test dataset directory: "/home/jovyan/clip-research/cifar100/train"
+
 Dataset parameters:
   tokenizer_name: "/home/jovyan/clip-research/models/ru-e5-base"
   max_sequence_length: 32
@@ -26,9 +27,8 @@ Dataset parameters:
   preload_images: True
   compress_images: True
 
-
 Train dataloader parameters:
-  batch_size: 5000
+  batch_size: 6400
   num_workers: 32
   shuffle: True
   drop_last: True
@@ -37,7 +37,7 @@ Train dataloader parameters:
   pin_memory_device: "cuda"
 
 Test dataloader parameters:
-  batch_size: 5000
+  batch_size: 6400
   num_workers: 32
   shuffle: True
   drop_last: True
@@ -63,9 +63,10 @@ Scheduler parameters:
   num_training_steps: 10000
 
 Train parameters:
-  epochs: 100
-  load_model: True
+  epochs: 2
+  load_model: False
   load_file: "/home/jovyan/clip-research/malikov/RuSigLIP/trained_models/model02/model.safetensors"
   save_model: True
   save_frequency: 1
   save_directory: "/home/jovyan/clip-research/malikov/RuSigLIP/trained_models/model03"
+
