@@ -26,3 +26,4 @@ class TextEncoder(nn.Module):
         outputs = self.model(input_ids, attention_mask)
         embeddings = average_pool(outputs.last_hidden_state, attention_mask)
         return embeddings
+

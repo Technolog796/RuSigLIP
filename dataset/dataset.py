@@ -147,7 +147,7 @@ class RuSigLIPDataset(Dataset):
 
 class DummyDataset(Dataset):
     def __init__(self, dataset_directory: str, *args, **kwargs) -> None:
-        self.size, _, _ = self._get_size(os.path.join(dataset_directory, "data.json"))
+        self.size = self._get_size(os.path.join(dataset_directory, "data.json"))
 
     def __len__(self) -> int:
         return self.size

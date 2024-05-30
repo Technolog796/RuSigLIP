@@ -5,9 +5,6 @@ import torch
 import numpy as np
 from torch import Tensor
 
-import dataset
-from dataset import RuSigLIPDataset
-
 
 def _extract_row_from_batch(batch: list[dict], key: str) -> Tensor:
     return torch.stack([item[key] for item in batch])
@@ -71,9 +68,3 @@ def update_topk_accuracy(labels: Tensor, img_emb: Tensor, txt_emb: Tensor,
                 accuracy[f"Accuracy@{k}"] += 1 / batch_size
     return accuracy
 
-
-def load_datasets(dataset_names: list[str], dataset_directories: list[str], params: dict[str, Any]) -> list[RuSigLIPDataset]:
-    datasets = []
-    for dataset_name, dataset_directory in zip(dataset_names, dataset_directories):
-        datasets.append(getattr(dataset, dataset_name)(**params))
-    return datasets
