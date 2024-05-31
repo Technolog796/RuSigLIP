@@ -30,7 +30,7 @@ class ModularConnector(nn.Module):
     ) -> None:
         super().__init__()
 
-        connector_shapes = [input_size] + output_sizes
+        connector_shapes = [input_size] + list(output_sizes)
 
         self.connector_blocks = nn.ModuleList(
             [

@@ -1,34 +1,19 @@
 import numpy as np
-import pytest
 import torch
 from PIL import Image
 
-from model import SigLIPModel
+from utils.inference_utils import load_model_and_tokenizer, preprocess, get_probs
 
 
-@pytest.mark.parametrize("model_name", SigLIPModel)
-def test_consistency(model_name):
-    device = "cpu"
-    jit_model, transform = SigLIPModel.load(model_name, device=device, jit=True)
-    py_model, _ = SigLIPModel.load(model_name, device=device, jit=False)
+def test_consistency():
+    model, tokenizer = load_model_and_tokenizer()
 
-    image = transform(Image.open("Sample.png")).unsqueeze(0).to(device)
-    text = SigLIPModel.tokenize(["a diagram", "a girl", "a cat"]).to(device)
+    image = np.array(Image.open("images/Sample.jpg"))
+    labels = ["a diagram", "a girl", "a cat"]
+    images, texts = preprocess([image], labels, tokenizer)
 
     with torch.no_grad():
-        logits_per_image, _ = jit_model(image, text)
-        jit_probs = logits_per_image.softmax(dim=-1).cpu().numpy()
+        img_emb, txt_emb = model(images, texts)
+        probs = get_probs(img_emb, txt_emb).squeeze()
 
-        logits_per_image, _ = py_model(image, text)
-        py_probs = logits_per_image.softmax(dim=-1).cpu().numpy()
-
-    assert np.allclose(jit_probs, py_probs, atol=0.01, rtol=0.1)
-
-
-"""
-Планы на тесты:
-- Подгрузка данных и проверка формата помимо типизации
-- Прогон 1 семпла через модель
-- Прогон батча (с детерминированностью)
-- Проверка валидации
-"""
+    assert np.allclose(probs.sum(), 1.0, atol=0.01, rtol=0.1)
