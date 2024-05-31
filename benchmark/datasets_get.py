@@ -4,7 +4,9 @@ from torchvision.datasets import (
     DTD,
     Food101,
     OxfordIIITPet,
+    GTSRB,
     MNIST,
+    SUN397,
     Country211,
     EuroSAT,
     FGVCAircraft,
@@ -70,11 +72,11 @@ def get_dataset(
         return None, None
 
     if language == "ru":
-        with open("./labels-ru/" + dataset_name + "-labels-ru.json") as f:
+        with open("benchmark/labels-ru/" + dataset_name + "-labels-ru.json") as f:
             labels = json.load(f)
     else:
         if dataset_name in ["flowers102", "country211"]:
-            with open("./labels-en/" + dataset_name + "-labels-en.json") as f:
+            with open("benchmark/labels-en/" + dataset_name + "-labels-en.json") as f:
                 labels = json.load(f)
         else:
             labels = dataset.classes
