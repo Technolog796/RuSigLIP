@@ -1,0 +1,7 @@
+/.idea/
+datasets/
+trained_models/
+__pycache__/
+wandb/
+.vscode
+.ruff_cache
