@@ -34,7 +34,11 @@ accelerate launch train.py train_config.yml --accelerate_config configs/accelera
 ```sh
 python benchmark/evaluation.py --dataset cifar100 --task zeroshot_classification --split test --size 100 --language en --topk 1
 ```
-Метрики для оценки: accuracy, precision_macro, recall_macro, f1_macroДатасеты для оценки: cifar10, cifar100, dtd, food101, oxfordiiitpet, mnist, country211, fgvcircraft, flowers102  
+Метрики для оценки: accuracy, precision_macro, recall_macro, f1_macro
+
+Датасеты для оценки: cifar10, cifar100, dtd, food101, oxfordiiitpet, mnist, country211, fgvcircraft, flowers102
+
+
 Для получения предсказаний воспользуйтесь командой
 ```sh
 python benchmark/predict.py --image image.jpg --labels "cat" "dog"
@@ -51,3 +55,14 @@ python benchmark/predict.py --image image.jpg --labels "cat" "dog"
 * <code>telegram_bot</code> - телеграм бот
 * <code>test</code> - проверка работоспособности компонентов
 * <code>utils</code> - загрузка данных, SigmoidLoss, вспомогательные функции для train и inference
+
+
+## Датасеты
+Для обучения модели мы использовали следующие датасеты:
+
+- [LAION COCO NLLB](https://huggingface.co/datasets/visheratin/laion-coco-nllb)
+- [Conceptual 3M](https://ai.google.com/research/ConceptualCaptions/download)
+- [Conceptual 12M](https://github.com/google-research-datasets/conceptual-12m)
+
+Для быстрой загрузки этих датасетов мы рекомендуем использовать библиотеку [img2dataset](https://github.com/rom1504/img2dataset)
+
