@@ -16,7 +16,7 @@ class SigLIPModel(nn.Module):
         image_embedding_size: int = 768,
         text_embedding_size: int = 768,
     ):
-        super().__init__()
+        super(nn.Module).__init__()
 
         if image_encoder_params is None:
             image_encoder_params = {}

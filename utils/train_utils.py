@@ -1,5 +1,5 @@
 from random import random
-from typing import Callable, Any
+from typing import Callable
 
 import torch
 import numpy as np
