@@ -14,8 +14,8 @@ from accelerate import Accelerator, DataLoaderConfiguration
 
 from dataset import DummyDataset
 from model import SigLIPModel
-from src.loss import SigmoidLoss
-from src.train_utils import (
+from loss import SigmoidLoss
+from train_utils import (
     get_train_collate_fn,
     get_test_collate_fn,
     update_topk_accuracy,
@@ -227,7 +227,7 @@ def main(params: dict[str, Any]) -> None:
 if __name__ == "__main__":
     torch.manual_seed(42)
 
-    with open("train_config.yml") as file:
+    with open("configs/train_config.yml") as file:
         args = yaml.load(file, yaml.Loader)
 
     main(args)

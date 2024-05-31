@@ -7,13 +7,13 @@ from torch.nn.functional import softmax
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 from safetensors import safe_open
 
-from model import SigLIPModel
+from src.model import SigLIPModel
 
 
 def load_model_and_tokenizer(
     model_params: dict[Tensor] | None = None,
     model_weights: str | None = None,
-    tokenizer_name: str = "../../models/encoders/ru-e5-base",
+    tokenizer_name: str = "hivaze/ru-e5-base",
 ) -> tuple[SigLIPModel, PreTrainedTokenizerFast]:
     if model_params is None:
         model_params = {}
@@ -43,8 +43,8 @@ def preprocess(
             [
                 A.Resize(img_size, img_size),
                 A.Normalize(
-                    mean=[0.48145466, 0.4578275, 0.40821073],
-                    std=[0.26862954, 0.26130258, 0.27577711],
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225],
                     max_pixel_value=255.0,
                     always_apply=True,
                 ),

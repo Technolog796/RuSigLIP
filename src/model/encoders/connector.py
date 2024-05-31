@@ -12,17 +12,12 @@ class ConnectorBlock(nn.Module):
         self.layer_norm = nn.LayerNorm(out_size)
 
     def forward(self, x: Tensor) -> Tensor:
-        # x = self.projection(x)
-        # x = self.gelu(x)
-        # x = self.dropout(x)
-
         projected = self.projection(x)
         x = self.gelu(projected)
         x = self.fc(x)
         x = self.dropout(x)
         x += projected
         x = self.layer_norm(x)
-
         return x
 
 
@@ -45,17 +40,8 @@ class ModularConnector(nn.Module):
                 for i in range(len(connector_shapes) - 1)
             ]
         )
-        # self.layer_norm_blocks = nn.ModuleList(
-        #    [nn.LayerNorm(connector_shapes[i]) for i in range(1, len(connector_shapes))]
-        # )
 
     def forward(self, x: Tensor) -> Tensor:
-        # for block, layer_norm in zip(
-        #    self.connector_blocks, self.layer_norm_blocks
-        # ):
-        # projection = block(x)
-        # x += projection
-        # x = layer_norm(x)
         for block in self.connector_blocks:
             x = block(x)
 

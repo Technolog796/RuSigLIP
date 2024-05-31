@@ -3,23 +3,22 @@ Model parameters:
     model_name: "google/vit-base-patch16-224-in21k"
     freeze: False 
   text_encoder_params:
-    model_name: "/home/jovyan/clip-research/models/ru-e5-base"
-    pretrained: True
+    model_name: "hivaze/ru-e5-base"
     freeze: False
   connector_params:
-    output_sizes: [512, 256]
+    output_sizes: [256]
     dropout_rate: 0.5
   image_embedding_size: 768
   text_embedding_size: 768
 
 Train dataset names: ["LaionCocoDataset"]
-Train dataset directories: ["/home/jovyan/clip-research/datasets/laion-coco-nllb/train"]
+Train dataset directories: ["/local/path/to/laion-coco"]
 
 Test dataset name: "CIFAR100"
-Test dataset directory: "/home/jovyan/clip-research/cifar100/train"
+Test dataset directory: "/local/path/to/cifar100"
 
 Dataset parameters:
-  tokenizer_name: "/home/jovyan/clip-research/models/ru-e5-base"
+  tokenizer_name: "hivaze/ru-e5-base"
   max_sequence_length: 32
   target_image_size: 224
   load_tokenized_files: False
@@ -63,10 +62,9 @@ Scheduler parameters:
   num_training_steps: 10000
 
 Train parameters:
-  epochs: 2
+  epochs: 100
   load_model: False
-  load_file: "/home/jovyan/clip-research/malikov/RuSigLIP/trained_models/model02/model.safetensors"
+  load_file: "/path/to/saved/weights.safetensors"
   save_model: True
   save_frequency: 1
-  save_directory: "/home/jovyan/clip-research/malikov/RuSigLIP/trained_models/model03"
-
+  save_directory: "/path/to/save/directory"
