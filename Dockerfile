@@ -5,7 +5,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 USER root
 
-# Создание пользователя и подготовка окружения
+# Create user and prepare environment
 RUN groupadd -g 1000 user && \
     useradd -g user -u 1000 -m user && \
     mkdir -p /tmp/.jupyter_data /tmp/.jupyter /home/user && \
@@ -16,7 +16,7 @@ RUN chown -R user:user /InternImage
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Объединяем обновление, установку пакетов, Nvtop и чистку в одной команде для оптимизации
+# Combine update, package installation, Nvtop installation, and cleanup in one command for optimization
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libaio-dev tzdata tmux libncurses5-dev libncursesw5-dev git cmake build-essential libudev-dev libsystemd-dev libdrm-dev curl && \
     apt-get upgrade -qy && \
@@ -29,36 +29,24 @@ RUN apt-get update && \
     make install && \
     cd ../.. && rm -rf nvtop
 
-# Установка uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Создание и активация виртуального окружения
-RUN uv venv /home/user/.venv
+# Create and activate virtual environment
+RUN python -m venv /home/user/.venv
 ENV VIRTUAL_ENV=/home/user/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 COPY requirements.in ./requirements.in
 
-# Установка Python пакетов с помощью uv
-RUN uv pip install -U pip setuptools wheel && \
-    uv pip install -r requirements.in && \
-    uv pip install jupyterlab notebook tqdm wandb ipywidgets nvitop sacrebleu bert_score rouge_score sentence_transformers ruff packaging ninja flash-attn transformers[deepspeed-testing] && \
+# Install Python packages
+RUN pip install -U pip setuptools wheel && \
+    pip install -r requirements.in && \
+    pip install jupyterlab notebook tqdm wandb ipywidgets nvitop sacrebleu bert_score rouge_score sentence_transformers ruff packaging ninja flash-attn transformers[deepspeed-testing] && \
     git clone https://github.com/EleutherAI/lm-evaluation-harness && cd lm-evaluation-harness && \
-    uv pip install -e . && \
-    uv pip install -e ".[multilingual]"
+    pip install -e . && \
+    pip install -e ".[multilingual]"
 
 ENV PYTHONUSERBASE=/home/user/.local
 ENV PYTHONUSERPATH="$PYTHONUSERBASE/bin"
 ENV PATH=$PYTHONUSERPATH:$PATH
 
 USER user
-CMD jupyter notebook \
-              --notebook-dir=/home/user \
-              --ip=0.0.0.0 \
-              --no-browser \
-              --allow-root \
-              --port=8888 \
-              --NotebookApp.token='' \
-              --NotebookApp.password='' \
-              --NotebookApp.base_url=${NB_PREFIX} \
-              --NotebookApp.allow_origin='*'
+CMD ["bash"]

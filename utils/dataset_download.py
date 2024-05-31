@@ -22,11 +22,11 @@ def main(dataset_name: str, dataset_dir: str) -> None:
     classes_en: List[str] = [cls.replace("_", " ") for cls in dataset.classes]
 
     data: List[Dict[str, Any]] = []
-    
+
     for i, (img, num) in enumerate(dataset):
         img_path: str = os.path.join(images_dir, f"{i}.jpg")
         img.save(img_path)
-        
+
         data.append(
             {
                 "image_id": str(i),
@@ -34,7 +34,7 @@ def main(dataset_name: str, dataset_dir: str) -> None:
                 "caption_rus": "",
             }
         )
-    
+
     json_path: str = os.path.join(dataset_dir, "data.json")
     with open(json_path, "w") as f:
         json.dump(data, f, indent=4)
