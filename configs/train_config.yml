@@ -1,0 +1,70 @@
+Model parameters:
+  image_encoder_params:
+    model_name: "google/vit-base-patch16-224-in21k"
+    freeze: False 
+  text_encoder_params:
+    model_name: "hivaze/ru-e5-base"
+    freeze: False
+  connector_params:
+    output_sizes: [256]
+    dropout_rate: 0.5
+  image_embedding_size: 768
+  text_embedding_size: 768
+
+Train dataset names: ["LaionCocoDataset"]
+Train dataset directories: ["/local/path/to/laion-coco"]
+
+Test dataset name: "CIFAR100"
+Test dataset directory: "/local/path/to/cifar100"
+
+Dataset parameters:
+  tokenizer_name: "hivaze/ru-e5-base"
+  max_sequence_length: 32
+  target_image_size: 224
+  load_tokenized_files: False
+  save_tokenized_files: True
+  preload_images: True
+  compress_images: True
+
+Train dataloader parameters:
+  batch_size: 6400
+  num_workers: 32
+  shuffle: True
+  drop_last: True
+  prefetch_factor: 2
+  pin_memory: True
+  pin_memory_device: "cuda"
+
+Test dataloader parameters:
+  batch_size: 6400
+  num_workers: 32
+  shuffle: True
+  drop_last: True
+  prefetch_factor: 2
+  pin_memory: True
+  pin_memory_device: "cuda"
+
+Language parameters:
+  language: Null
+  ru_probability: 0.5
+
+Loss parameters:
+  temperature: 10.0
+  bias: -10.0
+
+Optimizer parameters:
+  lr: 0.0002
+  betas: [0.9, 0.95]
+  weight_decay: 0.00003 
+
+Scheduler parameters:
+  num_warmup_steps: 100
+  num_training_steps: 10000
+
+Train parameters:
+  epochs: 100
+  load_model: False
+  load_file: "/path/to/saved/weights.safetensors"
+  save_model: True
+  save_frequency: 1
+  save_directory: "/path/to/save/directory"
