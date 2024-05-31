@@ -17,7 +17,7 @@ from utils.inference_utils import load_model_and_tokenizer, preprocess, get_prob
 
 
 model, tokenizer = load_model_and_tokenizer(
-    model_weights="../trained_models/model06/model.safetensors"
+    model_weights="path/to/model/weights.safetensors"
 )
 
 with open("messages.json", "r", encoding="utf-8") as file:

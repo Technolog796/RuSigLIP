@@ -20,7 +20,7 @@ fsdp_config:
    fsdp_sharding_strategy: FULL_SHARD # FULL_SHARD / SHARD_GRAD_OP / NO_SHARD / HYBRID_SHARD / HYBRID_SHARD_ZERO2
    fsdp_state_dict_type: FULL_STATE_DICT # FULL_STATE_DICT / SHARDED_STATE_DICT / LOCAL_STATE_DICT
    fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
-   fsdp_transformer_layer_cls_to_wrap: ImageEncoder,TextEncoder,Connector
+   fsdp_transformer_layer_cls_to_wrap: ImageEncoder,TextEncoder,ModularConnector
 
 main_training_function: main
 downcast_bf16: True

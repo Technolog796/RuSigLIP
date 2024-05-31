@@ -37,6 +37,40 @@ class LaionCocoDataset(RuSigLIPDataset):
         )
 
 
+class CC3MDataset(RuSigLIPDataset):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.transforms = A.Compose(
+            [
+                A.Resize(self.image_size, self.image_size),
+                A.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225],
+                    max_pixel_value=255.0,
+                    always_apply=True,
+                ),
+            ]
+        )
+
+
+class CC12MDataset(RuSigLIPDataset):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.transforms = A.Compose(
+            [
+                A.Resize(self.image_size, self.image_size),
+                A.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225],
+                    max_pixel_value=255.0,
+                    always_apply=True,
+                ),
+            ]
+        )
+
+
 class CIFAR10(LaionCocoDataset):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -67,8 +101,3 @@ class CIFAR100(LaionCocoDataset):
                 ),
             ]
         )
-
-
-class MNIST(LaionCocoDataset):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
