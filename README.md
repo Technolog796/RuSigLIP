@@ -3,13 +3,23 @@
 ## Обзор
 Русскоязычная модель для zero-shot классификации изображений - реализация статьи [Sigmoid Loss for Language Image Pre-Training](https://arxiv.org/ftp/arxiv/papers/2303/2303.15343.pdf) на PyTorch, выполненная в рамках весеннего проекта в НИУ ВШЭ СПБ в 2024 году.
 
-
 ## Установка
-
+### Стандартная установка через Pip
 ```sh
 git clone https://github.com/Technolog796/RuSigLIP
-pip install requirements.txt
+pip install -r requirements.txt
+python main.py
 ```
+
+### Альтернативная установка через uv
+```sh
+git clone https://github.com/Technolog796/RuSigLIP
+uv venv venv --python=python3.X
+source venv/bin/activate
+uv pip install -r requirements.txt
+python main.py
+```
+
 
 ## Использование модели
 

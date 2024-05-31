@@ -14,8 +14,8 @@ from accelerate import Accelerator, DataLoaderConfiguration
 
 from dataset import DummyDataset
 from model import SigLIPModel
-from utils.loss import SigmoidLoss
-from utils.train_utils import (
+from src.loss import SigmoidLoss
+from src.train_utils import (
     get_train_collate_fn,
     get_test_collate_fn,
     update_topk_accuracy,
