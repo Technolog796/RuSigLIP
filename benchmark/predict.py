@@ -1,21 +1,24 @@
 import os
 
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 import PIL
 from PIL import Image
 import torch
 import argparse
+import numpy as np
 
-from transformers import AutoProcessor, AutoModel
+# from transformers import AutoProcessor, AutoModel
 
 from typing import List, Union
 
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+from utils.inference_utils import load_model_and_tokenizer, preprocess, get_probs
 
 
 def predict(
     path: str = "image.jpg",
     labels: List[str] = [],
-    model: str = "google/siglip-base-patch16-224",
+    model_weights: str = "trained_models/model12/model.safetensors",
 ) -> Union[None, int]:
     if len(labels) == 0:
         print("Len of list of labels must be > 0")
@@ -39,37 +42,37 @@ def predict(
     except TypeError:
         print("Formats in Image.open() is not None, a list or a tuple")
         return None
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        return None
-    if model == "google/siglip-base-patch16-224":
-        processor = AutoProcessor.from_pretrained("google/siglip-base-patch16-224")
-        model = AutoModel.from_pretrained("google/siglip-base-patch16-224")
-    else:
+    except:
+        print("Unexpected error")
         return None
 
-    inputs = processor(text=labels, images=image, return_tensors="pt", padding=True)
-    outputs = model(**inputs)
-    logits_per_image = outputs.logits_per_image
-    probs = torch.sigmoid(logits_per_image)
-    return torch.argmax(probs[0]).item()
+    model, tokenizer = load_model_and_tokenizer(
+        model_weights=model_weights,
+        tokenizer_name="/home/jovyan/clip-research/models/ru-e5-base/",
+    )
+    images, texts = preprocess([np.asarray(image)], labels, tokenizer)
+    img_emb, txt_emb = model(images, texts)
+    probs = get_probs(img_emb, txt_emb)[0].tolist()
+    return np.array(probs).argmax()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prediction of model")
     parser.add_argument("--image", type=str, default="", help="Path to image")
     parser.add_argument(
-        "--model",
+        "--model_weights",
         type=str,
-        default="google/siglip-base-patch16-224",
-        help="Name of model",
+        default="trained_models/model12/model.safetensors",
+        help="Path to model weights",
     )
     parser.add_argument(
         "--labels", type=str, nargs="+", default=[], help="List of labels"
     )
     args = parser.parse_args()
 
-    pred = predict(path=args.image, labels=args.labels, model=args.model)
+    pred = predict(
+        path=args.image, labels=args.labels, model_weights=args.model_weights
+    )
     print(
         "Prediction is impossible"
         if pred is None or pred >= len(args.labels) or pred < 0

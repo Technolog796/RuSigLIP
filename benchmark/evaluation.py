@@ -7,15 +7,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="all",
+        default="cifar100",
         choices=all_datasets + ["all"],
         help="Name of dataset",
-    )
-    parser.add_argument(
-        "--model",
-        type=str,
-        default="openai/clip-vit-base-patch32",
-        help="Name of model",
     )
     parser.add_argument(
         "--task",
@@ -32,7 +26,7 @@ if __name__ == "__main__":
         help="train or test part of dataset",
     )
     parser.add_argument(
-        "--size", type=int, default=10, help="Size of dataset. -1 for all dataset"
+        "--size", type=int, default=-1, help="Size of dataset. -1 for all dataset"
     )
     parser.add_argument(
         "--language",
@@ -42,12 +36,18 @@ if __name__ == "__main__":
         help="Language of dataset",
     )
     parser.add_argument("--topk", type=int, default=1, help="k in topk accuracy")
+    parser.add_argument(
+        "--model_weights",
+        type=str,
+        default="trained_models/model12/model.safetensors",
+        help="Path to model weights",
+    )
     args = parser.parse_args()
     if args.task == "zeroshot_classification":
         print(
             args.task,
             evaluate(
-                args.model,
+                model_weights=args.model_weights,
                 dataset_name=args.dataset,
                 split=args.split,
                 size=args.size,

@@ -1,3 +1,4 @@
+import pytest
 import os
 import torch
 
@@ -31,7 +32,7 @@ def test_predict_result():
     labels = ["cat", "dog"]
     if os.path.exists(image_path):
         pred = predict(path=image_path, labels=labels)
-        assert isinstance(pred, int)
+        assert type(pred) is int
         assert pred in list(range(len(labels)))
 
 
@@ -39,11 +40,11 @@ def test_predict_result():
 def test_accuracy():
     true = [0, 0, 1, 2, 4]
     probs = [
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
     ]
     acc = accuracy(true=true, probs=probs, k=1)
     assert acc == 0.2
@@ -61,11 +62,11 @@ def test_accuracy():
 def test_precision_macro():
     true = [0, 0, 1, 2, 4]
     probs = [
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
     ]
     precision = precision_macro(names=true, probs=probs, k=1)
     assert precision == (0 + 0 + 0 + 1.0 / 5) / 4
@@ -83,11 +84,11 @@ def test_precision_macro():
 def test_recall_macro():
     true = [0, 0, 1, 2, 4]
     probs = [
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
     ]
     recall = recall_macro(names=true, probs=probs, k=1)
     assert recall == (0 + 0 + 0 + 1.0 / 1) / 4
@@ -105,11 +106,11 @@ def test_recall_macro():
 def test_f1_macro():
     true = [0, 0, 1, 2, 4]
     probs = [
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
-        torch.tensor([0.1, 0.15, 0.2, 0.2, 0.4]),
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
+        [0.1, 0.15, 0.2, 0.2, 0.4],
     ]
     for k in range(1, 6):
         precision = precision_macro(names=true, probs=probs, k=k)
