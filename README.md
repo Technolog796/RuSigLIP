@@ -1,4 +1,7 @@
+
 # RuSigLIP
+
+![Logo](images/Logo.png)
 
 ## Обзор
 Русскоязычная модель для zero-shot классификации изображений - реализация статьи [Sigmoid Loss for Language Image Pre-Training](https://arxiv.org/ftp/arxiv/papers/2303/2303.15343.pdf) на PyTorch, выполненная в рамках весеннего проекта в НИУ ВШЭ СПБ в 2024 году.
@@ -20,7 +23,6 @@ uv pip install -r requirements.txt
 python main.py
 ```
 
-
 ## Использование модели
 
 Для запуска воспользуйтесь командой
@@ -29,13 +31,10 @@ accelerate launch train.py train_config.yml --accelerate_config configs/accelera
 ```
 
 Для оценки модели воспользуйтесь командой
-
 ```sh
 python benchmark/evaluation.py --dataset cifar100 --task zeroshot_classification --split test --size 100 --language en --topk 1
 ```
-Метрики для оценки: accuracy, precision_macro, recall_macro, f1_macro\
-Датасеты для оценки: cifar10, cifar100, dtd, food101, oxfordiiitpet, mnist, country211, fgvcircraft, flowers102  \
-
+Метрики для оценки: accuracy, precision_macro, recall_macro, f1_macroДатасеты для оценки: cifar10, cifar100, dtd, food101, oxfordiiitpet, mnist, country211, fgvcircraft, flowers102  
 Для получения предсказаний воспользуйтесь командой
 ```sh
 python benchmark/predict.py --image image.jpg --labels "cat" "dog"
@@ -52,5 +51,3 @@ python benchmark/predict.py --image image.jpg --labels "cat" "dog"
 * <code>telegram_bot</code> - телеграм бот
 * <code>test</code> - проверка работоспособности компонентов
 * <code>utils</code> - загрузка данных, SigmoidLoss, вспомогательные функции для train и inference
-
-

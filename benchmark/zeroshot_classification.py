@@ -1,4 +1,3 @@
-import os
 
 import torch
 import numpy as np
@@ -10,8 +9,6 @@ from typing import Dict, List, Tuple, Union
 import torchvision
 
 from utils.inference_utils import load_model_and_tokenizer, preprocess, get_probs
-
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 
 def accuracy(true, probs, k=1):
