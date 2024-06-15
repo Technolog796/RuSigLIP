@@ -1,10 +1,14 @@
 from transformers import AutoModel
 from torch import nn, Tensor
+import torch
 
 
-def average_pool(last_hidden_states: Tensor, attention_mask: Tensor) -> Tensor:
-    last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
-    return last_hidden.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
+def mean_pooling(model_output: tuple[Tensor, ...], attention_mask: Tensor) -> Tensor:
+    token_embeddings = model_output[0] 
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
+    sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+    return (sum_embeddings / sum_mask).to(torch.bfloat16) # For bf16 training support
 
 
 class TextEncoder(nn.Module):
@@ -21,6 +25,6 @@ class TextEncoder(nn.Module):
             param.requires_grad = not freeze
 
     def forward(self, input_ids: Tensor, attention_mask: Tensor) -> Tensor:
-        outputs = self.model(input_ids, attention_mask)
-        embeddings = average_pool(outputs.last_hidden_state, attention_mask)
+        outputs = self.model(input_ids, attention_mask, return_dict=True)
+        embeddings = mean_pooling(model_output=outputs, attention_mask=attention_mask)
         return embeddings

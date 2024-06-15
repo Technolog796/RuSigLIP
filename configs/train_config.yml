@@ -1,6 +1,6 @@
 Model parameters:
   image_encoder_params:
-    model_name: "google/vit-base-patch16-224-in21k"
+    model_name: "google/vit-base-patch32-224-in21k"
     freeze: False 
   text_encoder_params:
     model_name: "hivaze/ru-e5-base"
@@ -53,13 +53,21 @@ Loss parameters:
   bias: -10.0
 
 Optimizer parameters:
-  lr: 0.0002
-  betas: [0.9, 0.95]
-  weight_decay: 0.00003 
+  name: "AdamW" # AdamW, Lamb, DecoupledAdamW
+  params:
+    lr: 0.0002
+    betas: [0.9, 0.95]
+    weight_decay: 0.00003 
 
 Scheduler parameters:
-  num_warmup_steps: 100
-  num_training_steps: 10000
+  name: "OneCycleLR" # OneCycleLR, Cosine_schedule_with_warmup
+  params:
+    max_lr: 0.00005
+    pct_start: 0.003
+    anneal_strategy: cos
+    final_div_factor: 10000
+    # num_warmup_steps: 100 # TODO придумать как универсально формировать этот момент
+    # num_training_steps: 10000
 
 Train parameters:
   epochs: 100

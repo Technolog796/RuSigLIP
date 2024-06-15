@@ -1,9 +1,16 @@
 from random import random
 from typing import Callable
+from typing import Any, Dict, Union
+
 
 import torch
 import numpy as np
 from torch import Tensor
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
+
+from transformers import get_cosine_schedule_with_warmup
+from composer.optim import DecoupledAdamW
 
 
 def _extract_row_from_batch(batch: list[dict], key: str) -> Tensor:
@@ -84,3 +91,36 @@ def update_topk_accuracy(
             if torch.any(labels[i] == predicted_labels[:k]):
                 accuracy[f"Accuracy@{k}"] += 1 / batch_size
     return accuracy
+
+
+def configure_optimizer_and_scheduler(
+    model_parameters: Any,
+    optimizer_config: Dict[str, Any],
+    scheduler_config: Dict[str, Any]
+) -> Union[Optimizer, _LRScheduler]:
+    
+    optimizer_name = optimizer_config["name"]
+    optimizer_params = optimizer_config["params"]
+
+    if optimizer_name == "AdamW":
+        optimizer = torch.optim.AdamW(model_parameters, **optimizer_params)
+    elif optimizer_name == "Lamb":
+        from bitsandbytes.optim import LAMB
+        optimizer = LAMB(model_parameters, **optimizer_params)
+    elif optimizer_name == "DecoupledAdamW":
+        optimizer = DecoupledAdamW(model_parameters, **optimizer_params)
+    else:
+        raise ValueError(f"Unknown optimizer name: {optimizer_name}")
+    
+
+    scheduler_name = scheduler_config["name"]
+    scheduler_params = scheduler_config["params"]
+
+    if scheduler_name == "Cosine_schedule_with_warmup":
+        scheduler = get_cosine_schedule_with_warmup(optimizer, **scheduler_params)
+    elif scheduler_name == "OneCycleLR":
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, **scheduler_params)
+    else:
+        raise ValueError(f"Unknown scheduler name: {scheduler_name}")
+
+    return optimizer, scheduler

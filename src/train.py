@@ -19,6 +19,7 @@ from train_utils import (
     get_train_collate_fn,
     get_test_collate_fn,
     update_topk_accuracy,
+    configure_optimizer_and_scheduler,
 )
 
 
@@ -138,10 +139,17 @@ def main(params: dict[str, Any]) -> None:
         model.load_state_dict(weights)
 
     criterion = SigmoidLoss(**params["Loss parameters"])
-    optimizer = DecoupledAdamW(model.parameters(), **params["Optimizer parameters"])
-    scheduler = get_cosine_schedule_with_warmup(
-        optimizer, **params["Scheduler parameters"]
+
+    optimizer, scheduler = configure_optimizer_and_scheduler(
+        model_parameters=model.parameters(),
+        optimizer_config=params["Optimizer parameters"],
+        scheduler_config=params["Scheduler parameters"],
     )
+
+    # optimizer = DecoupledAdamW(model.parameters(), **params["Optimizer parameters"])
+    # scheduler = get_cosine_schedule_with_warmup(
+    #    optimizer, **params["Scheduler parameters"]
+    # )
 
     if accelerator.is_main_process:
         train_datasets = []

@@ -1,6 +1,6 @@
 from torch import nn, Tensor
 from transformers import ViTModel
-
+import torch
 
 class ImageEncoder(nn.Module):
     def __init__(
@@ -16,4 +16,6 @@ class ImageEncoder(nn.Module):
             param.requires_grad = not freeze
 
     def forward(self, x: Tensor) -> Tensor:
-        return self.model(x).last_hidden_state.mean(axis=1)
+        outputs = self.model(x)
+        return torch.mean(outputs.last_hidden_state, dim=1)
+
