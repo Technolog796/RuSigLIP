@@ -81,7 +81,7 @@ def pil_access_compressed(buffer: bytes) -> None:
 
 
 def test_lib(
-    fn_preload: Callable[[str], bytes | ndarray | Image],
+    fn_preload: Callable[[str], bytes | ndarray ],
     fn_access: Callable[[bytes | ndarray], None],
     lib_name: str,
     image_directory: str,
