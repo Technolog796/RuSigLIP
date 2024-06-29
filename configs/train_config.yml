@@ -11,11 +11,13 @@ Model parameters:
   image_embedding_size: 768
   text_embedding_size: 768
 
-Train dataset names: ["LaionCocoDataset"]
-Train dataset directories: ["/local/path/to/laion-coco"]
+Train dataset:
+  names: ["LaionCocoDataset"]
+  directories: ["/local/path/to/laion-coco"]
 
-Test dataset name: "CIFAR100"
-Test dataset directory: "/local/path/to/cifar100"
+Test dataset:
+  name: "CIFAR100"
+  directory: "/local/path/to/cifar100"
 
 Dataset parameters:
   tokenizer_name: "hivaze/ru-e5-base"
@@ -26,23 +28,23 @@ Dataset parameters:
   preload_images: True
   compress_images: True
 
-Train dataloader parameters:
-  batch_size: 6400
-  num_workers: 32
-  shuffle: True
-  drop_last: True
-  prefetch_factor: 2
-  pin_memory: True
-  pin_memory_device: "cuda"
-
-Test dataloader parameters:
-  batch_size: 6400
-  num_workers: 32
-  shuffle: True
-  drop_last: True
-  prefetch_factor: 2
-  pin_memory: True
-  pin_memory_device: "cuda"
+Dataloader parameters:
+  train:
+    batch_size: 6400
+    num_workers: 32
+    shuffle: True
+    drop_last: True
+    prefetch_factor: 2
+    pin_memory: True
+    pin_memory_device: "cuda"
+  test:
+    batch_size: 6400
+    num_workers: 32
+    shuffle: True
+    drop_last: True
+    prefetch_factor: 2
+    pin_memory: True
+    pin_memory_device: "cuda"
 
 Language parameters:
   language: Null
@@ -53,20 +55,20 @@ Loss parameters:
   bias: -10.0
 
 Optimizer parameters:
-  name: "AdamW" # AdamW, Lamb, DecoupledAdamW
+  name: "AdamW" # Options: AdamW, Lamb, DecoupledAdamW
   params:
     lr: 0.0002
     betas: [0.9, 0.95]
     weight_decay: 0.00003 
 
 Scheduler parameters:
-  name: "OneCycleLR" # OneCycleLR, Cosine_schedule_with_warmup
+  name: "OneCycleLR" # Options: OneCycleLR, Cosine_schedule_with_warmup
   params:
     max_lr: 0.00005
     pct_start: 0.003
     anneal_strategy: cos
     final_div_factor: 10000
-    # num_warmup_steps: 100 # TODO придумать как универсально формировать этот момент
+    # num_warmup_steps: 100 # TODO: Consider how to universally set these values
     # num_training_steps: 10000
 
 Train parameters:

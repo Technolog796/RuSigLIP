@@ -2,6 +2,7 @@ from torch import nn, Tensor
 from transformers import ViTModel
 import torch
 
+
 class ImageEncoder(nn.Module):
     def __init__(
         self,
@@ -18,4 +19,3 @@ class ImageEncoder(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         outputs = self.model(x)
         return torch.mean(outputs.last_hidden_state, dim=1)
-

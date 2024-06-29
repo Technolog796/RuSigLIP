@@ -1,4 +1,5 @@
 from torch import nn, Tensor
+from typing import List
 
 
 class ConnectorBlock(nn.Module):
@@ -25,12 +26,12 @@ class ModularConnector(nn.Module):
     def __init__(
         self,
         input_size: int,
-        output_sizes: list[int] = (256,),
+        output_sizes: List[int] = [256],
         dropout_rate: float = 0.5,
     ) -> None:
         super().__init__()
 
-        connector_shapes = [input_size] + list(output_sizes)
+        connector_shapes = [input_size] + output_sizes
 
         self.connector_blocks = nn.ModuleList(
             [

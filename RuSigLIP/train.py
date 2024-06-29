@@ -1,5 +1,6 @@
 import yaml
-from typing import Any
+from typing import Any, Dict, List, Tuple
+import gc
 import dataset
 
 import wandb
@@ -9,7 +10,6 @@ from safetensors import safe_open
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import LambdaLR
 from composer.optim import DecoupledAdamW
-from transformers import get_cosine_schedule_with_warmup
 from accelerate import Accelerator, DataLoaderConfiguration
 
 from dataset import DummyDataset
@@ -20,17 +20,18 @@ from train_utils import (
     get_test_collate_fn,
     update_topk_accuracy,
     configure_optimizer_and_scheduler,
+    set_seed
 )
 
 
-@torch.no_grad()
+@torch.inference_mode()
 def eval_epoch(
     accelerator: Accelerator,
     model: SigLIPModel,
     criterion: SigmoidLoss,
     loader: DataLoader,
-    topk: tuple[int] = (1, 5),
-) -> dict[str, float]:
+    topk: Tuple[int, ...] = (1, 5),
+) -> Dict[str, float]:
     model.eval()
 
     rank = accelerator.process_index
@@ -82,10 +83,10 @@ def train_epoch(
     accelerator: Accelerator,
     model: SigLIPModel,
     criterion: SigmoidLoss,
-    loaders: list[DataLoader],
+    loaders: List[DataLoader],
     optimizer: DecoupledAdamW,
     scheduler: LambdaLR,
-) -> dict[str, float]:
+) -> Dict[str, float]:
     model.train()
     ddp_loss = torch.tensor([0.0], device=accelerator.process_index)
     steps_number = sum(len(loader) for loader in loaders)
@@ -115,13 +116,18 @@ def train_epoch(
             if accelerator.is_main_process:
                 inner_pbar.update()
 
+            # Clear memory
+            del images, all_texts, img_emb, txt_emb, loss
+            torch.cuda.empty_cache()
+            gc.collect()
+
     ddp_loss /= steps_number
     ddp_loss = accelerator.gather(ddp_loss).sum().item()
 
     return {"Train loss": ddp_loss}
 
 
-def main(params: dict[str, Any]) -> None:
+def main(params: Dict[str, Any]) -> None:
     accelerator = Accelerator(
         dataloader_config=DataLoaderConfiguration(
             split_batches=True, dispatch_batches=True
@@ -146,26 +152,19 @@ def main(params: dict[str, Any]) -> None:
         scheduler_config=params["Scheduler parameters"],
     )
 
-    # optimizer = DecoupledAdamW(model.parameters(), **params["Optimizer parameters"])
-    # scheduler = get_cosine_schedule_with_warmup(
-    #    optimizer, **params["Scheduler parameters"]
-    # )
-
     if accelerator.is_main_process:
-        train_datasets = []
-        for dataset_name, dataset_directory in zip(
-            params["Train dataset names"], params["Train dataset directories"]
-        ):
-            train_datasets.append(
-                getattr(dataset, dataset_name)(
-                    dataset_directory, **params["Dataset parameters"]
-                )
+        train_datasets = [
+            getattr(dataset, dataset_name)(
+                dataset_directory, **params["Dataset parameters"]
             )
+            for dataset_name, dataset_directory in zip(
+                params["Train dataset names"], params["Train dataset directories"]
+            )
+        ]
 
         test_dataset = getattr(dataset, params["Test dataset name"])(
             params["Test dataset directory"], **params["Dataset parameters"]
         )
-
     else:
         train_datasets = [
             DummyDataset(directory) for directory in params["Train dataset directories"]
@@ -191,10 +190,7 @@ def main(params: dict[str, Any]) -> None:
     model, optimizer, scheduler, test_loader = accelerator.prepare(
         model, optimizer, scheduler, test_loader
     )
-    if len(train_loaders) > 1:
-        train_loaders = accelerator.prepare(*train_loaders)
-    else:
-        train_loaders = [accelerator.prepare(train_loaders[0])]
+    train_loaders = [accelerator.prepare(loader) for loader in train_loaders]
 
     if accelerator.is_main_process:
         wandb.login()
@@ -233,7 +229,7 @@ def main(params: dict[str, Any]) -> None:
 
 
 if __name__ == "__main__":
-    torch.manual_seed(42)
+    set_seed(79)
 
     with open("configs/train_config.yml") as file:
         args = yaml.load(file, yaml.Loader)
